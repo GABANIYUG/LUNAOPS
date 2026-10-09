@@ -1,0 +1,12 @@
+{
+  "source_file": "ldem_16.tif",
+  "original_width": 5760,
+  "original_height": 2880,
+  "downsampled_width": 1440,
+  "downsampled_height": 720,
+  "elevation_min": -8.981500625610352,
+  "elevation_max": 10.685500144958496,
+  "elevation_range": 19.66699981689453,
+  "units": "kilometers (based on min/max of ~ -9 to 10.7)",
+  "processing": "Downsampled by factor of 4. Mapped to 16-bit grayscale."
+}

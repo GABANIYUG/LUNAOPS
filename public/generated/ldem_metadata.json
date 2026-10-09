@@ -1,0 +1,17 @@
+{
+  "source_file": "ldem_16.tif",
+  "source": "NASA LRO / LOLA",
+  "original_width": 5760,
+  "original_height": 2880,
+  "elevation_min_km": -8.981500625610352,
+  "elevation_max_km": 10.685500144958496,
+  "elevation_range_km": 19.667000770568848,
+  "units": "kilometers relative to 1737.4 km reference sphere",
+  "lunar_reference_radius_km": 1737.4,
+  "outputs": {
+    "ldem_normal_map.png": "5760x2880 RGB tangent-space normal map, strength 2.5",
+    "ldem_normal_map_half.png": "2880x1440 RGB tangent-space normal map (2x downsampled), strength 2.5",
+    "ldem_displacement_8bit.png": "5760x2880 8-bit grayscale displacement preview",
+    "ldem_displacement_16bit.png": "1440x720 16-bit grayscale displacement (from previous pipeline)"
+  }
+}
