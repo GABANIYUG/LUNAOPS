@@ -12,7 +12,6 @@ const MOON_REAL_RADIUS_KM = 1737.4;          // Reference sphere radius
 const ELEV_MIN_KM = -8.9815;                 // From NASA LDEM metadata
 const ELEV_MAX_KM = 10.6855;
 const ELEV_RANGE_KM = ELEV_MAX_KM - ELEV_MIN_KM;
-const DISPLACEMENT_SCALE = 0.04;             // Exaggeration factor for visual clarity
 const SPHERE_SEGMENTS = 512;                 // High-poly for displacement detail
 const BG_COLOR = 0x010509;
 
@@ -21,7 +20,6 @@ let moonMesh: THREE.Mesh | null = null;
 let moonGroup: THREE.Group;
 let autoRotate = true;
 let isWireframe = false;
-let showDisplacement = true;
 let sunAngle = 0.6;                          // Radians, animatable
 let animateSun = false;
 let displacementData: Float32Array | null = null;
@@ -187,24 +185,63 @@ function hideLoading() {
   setTimeout(() => loadingOverlay.remove(), 800);
 }
 
-// ── Custom Lunar Material (MeshStandardMaterial + custom params) ──
+// ── Relief scale modes ─────────────────────────────────────────
+const RELIEF_MODES = [
+  { label: '⛰ Relief: 1× (True Scale)', factor: 1.0 },
+  { label: '⛰ Relief: 2× (Subtle)', factor: 2.0 },
+  { label: '⛰ Relief: 4× (Exag.)', factor: 4.0 },
+  { label: '⛰ Relief: Off (Sphere)', factor: 0.0 },
+];
+let currentReliefMode = 0; // Default: 1x (True Scientific Scale)
+
+// ── Custom Lunar Material (MeshStandardMaterial) ───────────────
 function createLunarMaterial(
   colorMap: THREE.Texture,
   normalMap: THREE.Texture | null,
-  displacementMap: THREE.Texture | null,
 ): THREE.MeshStandardMaterial {
   const mat = new THREE.MeshStandardMaterial({
     map: colorMap,
     normalMap: normalMap || undefined,
-    normalScale: normalMap ? new THREE.Vector2(1.2, 1.2) : undefined,
-    displacementMap: displacementMap || undefined,
-    displacementScale: displacementMap ? DISPLACEMENT_SCALE : 0,
-    displacementBias: displacementMap ? -DISPLACEMENT_SCALE * 0.45 : 0,
-    roughness: 1.0,       // Moon regolith is extremely rough (no specular)
-    metalness: 0.0,       // Non-metallic
-    envMapIntensity: 0.0,  // No environment reflections
+    // Realistic normal scale: 0.4 gives crisp, natural crater relief along the terminator
+    normalScale: normalMap ? new THREE.Vector2(0.45, 0.45) : undefined,
+    roughness: 0.95,      // Powdery regolith reflects diffusely
+    metalness: 0.0,
+    envMapIntensity: 0.0,
   });
   return mat;
+}
+
+// ── Smooth Bilinear Elevation Sampler ──────────────────────────
+function sampleElevationBilinear(
+  u: number,
+  v: number,
+  width: number,
+  height: number,
+  pixels: Uint8ClampedArray,
+): number {
+  // Wrap longitude horizontally [0..1)
+  const x = ((u % 1.0 + 1.0) % 1.0) * (width - 1);
+  // Clamp latitude vertically [0..1]
+  const y = THREE.MathUtils.clamp(1.0 - v, 0.0, 1.0) * (height - 1);
+
+  const x0 = Math.floor(x);
+  const x1 = (x0 + 1) % width;
+  const y0 = Math.floor(y);
+  const y1 = Math.min(y0 + 1, height - 1);
+
+  const fx = x - x0;
+  const fy = y - y0;
+
+  const v00 = pixels[(y0 * width + x0) * 4] / 255.0;
+  const v10 = pixels[(y0 * width + x1) * 4] / 255.0;
+  const v01 = pixels[(y1 * width + x0) * 4] / 255.0;
+  const v11 = pixels[(y1 * width + x1) * 4] / 255.0;
+
+  const top = v00 * (1 - fx) + v10 * fx;
+  const bottom = v01 * (1 - fx) + v11 * fx;
+  const raw = top * (1 - fy) + bottom * fy;
+
+  return ELEV_MIN_KM + raw * ELEV_RANGE_KM;
 }
 
 // ── Build Moon Geometry with CPU displacement ──────────────────
@@ -225,52 +262,75 @@ function applyDisplacementToGeometry(
   const imgData = ctx.getImageData(0, 0, cvs.width, cvs.height);
   const pixels = imgData.data;
 
-  // Store original positions for toggling
+  // Store original smooth sphere positions
   originalPositions = new Float32Array(pos.array.length);
   originalPositions.set(pos.array as Float32Array);
 
-  // Store displacement values for readout
+  // Store scientific elevation values for readout (in true km)
   displacementData = new Float32Array(count);
+
+  // Precompute 1x true displacement
+  displacedPositions = new Float32Array(pos.array.length);
 
   const vertex = new THREE.Vector3();
   const normal = new THREE.Vector3();
 
+  const factor = RELIEF_MODES[currentReliefMode].factor;
+
   for (let i = 0; i < count; i++) {
     vertex.fromBufferAttribute(pos, i);
 
-    // Get UV to sample displacement
     const u = uv.getX(i);
     const v = uv.getY(i);
 
-    // Map UV to pixel coordinates
-    const px = Math.floor(u * (cvs.width - 1));
-    const py = Math.floor((1 - v) * (cvs.height - 1));
-    const idx = (py * cvs.width + px) * 4;
-
-    // For 8-bit: normalize 0-255 to 0-1, then scale to elevation
-    const rawVal = pixels[idx] / 255.0;
-    const elevKm = ELEV_MIN_KM + rawVal * ELEV_RANGE_KM;
-
-    // Store for readout
+    // Smooth bilinear sampling — prevents any stepping or jagged artifacts
+    const elevKm = sampleElevationBilinear(u, v, cvs.width, cvs.height, pixels);
     displacementData[i] = elevKm;
 
-    // Calculate displacement: scale relative to moon radius
-    const dispFactor = (elevKm / MOON_REAL_RADIUS_KM) * MOON_RADIUS * 12;
-    // 12x exaggeration for visual clarity — real topography is <1% of radius
+    // True physical scale: elevation / lunar radius (1737.4 km)
+    // In true 1:1 scale, the Moon is naturally spherical with real mountains (e.g. 5-10 km peaks)
+    const baseDisp = (elevKm / MOON_REAL_RADIUS_KM) * MOON_RADIUS;
 
     normal.copy(vertex).normalize();
-    vertex.add(normal.multiplyScalar(dispFactor));
 
+    // Store standard 1x true scale
+    const p1x = vertex.clone().add(normal.clone().multiplyScalar(baseDisp));
+    displacedPositions[i * 3]     = p1x.x;
+    displacedPositions[i * 3 + 1] = p1x.y;
+    displacedPositions[i * 3 + 2] = p1x.z;
+
+    // Apply current factor
+    vertex.add(normal.multiplyScalar(baseDisp * factor));
     pos.setXYZ(i, vertex.x, vertex.y, vertex.z);
   }
 
   pos.needsUpdate = true;
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
+}
 
-  // Store displaced array for toggling
-  displacedPositions = new Float32Array(pos.array.length);
-  displacedPositions.set(pos.array as Float32Array);
+function applyReliefFactor(factor: number) {
+  if (!moonMesh || !originalPositions || !displacementData) return;
+  const pos = moonMesh.geometry.attributes.position;
+  const count = pos.count;
+  const vertex = new THREE.Vector3();
+  const normal = new THREE.Vector3();
+
+  for (let i = 0; i < count; i++) {
+    vertex.set(
+      originalPositions[i * 3],
+      originalPositions[i * 3 + 1],
+      originalPositions[i * 3 + 2],
+    );
+    const elevKm = displacementData[i];
+    const baseDisp = (elevKm / MOON_REAL_RADIUS_KM) * MOON_RADIUS;
+    normal.copy(vertex).normalize();
+    vertex.add(normal.multiplyScalar(baseDisp * factor));
+    pos.setXYZ(i, vertex.x, vertex.y, vertex.z);
+  }
+
+  pos.needsUpdate = true;
+  moonMesh.geometry.computeVertexNormals();
 }
 
 // ── Load all textures and build the moon ───────────────────────
@@ -374,7 +434,7 @@ async function buildMoon() {
   setLoadStatus('Applying surface materials…', 92);
   await new Promise(r => setTimeout(r, 50));
 
-  const material = createLunarMaterial(textures.color, textures.normal, null);
+  const material = createLunarMaterial(textures.color, textures.normal);
   // We used CPU displacement so don't need the GPU displacementMap param
   moonMesh = new THREE.Mesh(geometry, material);
   moonMesh.castShadow = false;
@@ -448,7 +508,7 @@ hud.innerHTML = `
   <div class="controls-panel">
     <button id="btn-reset" title="Reset camera to default view">⟲ Reset</button>
     <button id="btn-auto" title="Toggle auto-rotation">⏸ Auto-Rotate</button>
-    <button id="btn-topo" class="active" title="Toggle 3D topographic relief vs smooth sphere">⛰ Topo Relief</button>
+    <button id="btn-topo" class="active" title="Toggle 3D elevation relief scale">⛰ Relief: 1× (True Scale)</button>
     <button id="btn-wire" title="Toggle wireframe overlay">◇ Wireframe</button>
     <button id="btn-sun" title="Animate solar terminator position">☀ Sun Cycle</button>
   </div>
@@ -480,15 +540,12 @@ document.getElementById('btn-auto')!.addEventListener('click', () => {
 });
 
 document.getElementById('btn-topo')!.addEventListener('click', () => {
-  showDisplacement = !showDisplacement;
-  if (moonMesh && originalPositions && displacedPositions) {
-    const pos = moonMesh.geometry.attributes.position;
-    (pos.array as Float32Array).set(showDisplacement ? displacedPositions : originalPositions);
-    pos.needsUpdate = true;
-    moonMesh.geometry.computeVertexNormals();
-  }
+  currentReliefMode = (currentReliefMode + 1) % RELIEF_MODES.length;
+  const mode = RELIEF_MODES[currentReliefMode];
+  applyReliefFactor(mode.factor);
   const btn = document.getElementById('btn-topo')!;
-  btn.classList.toggle('active', showDisplacement);
+  btn.textContent = mode.label;
+  btn.classList.toggle('active', mode.factor > 0);
 });
 
 document.getElementById('btn-wire')!.addEventListener('click', () => {
