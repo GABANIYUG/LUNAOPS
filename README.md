@@ -5,10 +5,13 @@
 LUNAOPS is a high-fidelity, interactive 3D Moon visualization built with Three.js using official NASA scientific datasets. It serves as the foundation for a lunar mission-planning and visualization web application.
 
 ## Features
-- **Physically Plausible Moon**: Uses real NASA lunar color maps (`lroc_color_2k.jpg`).
-- **Actual Topographic Relief**: Loads the 8k Topo GLB mesh derived from the Lunar Orbiter Laser Altimeter (LOLA) for accurate lunar terrain.
-- **Scientific Data Preprocessing**: Includes a reproducible Python pipeline to process massive NASA GeoTIFF elevation data into optimized web formats.
-- **Interactive Controls**: Smooth orbital controls (rotate, zoom, pan) and real-time visualization toggles (Wireframe).
+- **NASA LOLA Topographic Relief**: High-resolution 3D vertex displacement mapped directly from NASA LRO/LOLA DEM data (-8.98 km to +10.69 km elevation range).
+- **LROC True Color Mapping**: High-contrast surface albedo mapping using official Lunar Reconnaissance Orbiter Camera (LROC) global mosaic (`lroc_color_2k.jpg`).
+- **DEM-Derived Normal Mapping**: Tangent-space normal mapping generated directly from elevation gradients to render sharp crater rims, rilles, and micro-topography.
+- **Dynamic Solar Terminator ("Sun Cycle")**: Directional solar illumination with animatable sun angles to observe changing crater shadow lengths along the lunar terminator, calibrated against NASA SVS reference visualization (`moon_mapping_720p30.webm`).
+- **Interactive Telemetry & Altimetry**: Real-time cursor raycaster measuring accurate lunar coordinates (Latitude / Longitude) and true scientific elevation (km) at the cursor point.
+- **Cinematic Rendering**: Multi-layered starfield, subtle limb Fresnel rim glow, ACES Filmic tone mapping, and bloom post-processing.
+- **Interactive Controls**: Smooth orbital damping, camera reset, auto-rotation, wireframe inspection, and Topographic Relief vs Reference Sphere toggle.
 
 ## Prerequisites
 - **Node.js**: v18+ (for building and running the Vite web app)
