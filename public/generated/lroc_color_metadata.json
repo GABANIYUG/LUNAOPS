@@ -1,0 +1,40 @@
+{
+  "dataset_name": "NASA LROC WAC Global Color Mosaic",
+  "nasa_source_file": "lroc_color_16bit_srgb_4k.tif",
+  "nasa_source_url": "https://svs.gsfc.nasa.gov/4720/",
+  "scientific_instrument": "Lunar Reconnaissance Orbiter Camera (LROC) Wide Angle Camera (WAC)",
+  "original_specifications": {
+    "width": 4096,
+    "height": 2048,
+    "bit_depth_per_channel": 16,
+    "channels": 3,
+    "color_space": "sRGB (IEC 61966-2.1)",
+    "file_size_bytes": 61891324
+  },
+  "conversion": {
+    "method": "Exact 16-bit to 8-bit sRGB affine quantization (val / 257.0 with rounding)",
+    "transformations": "None (zero crop, zero rotation, zero horizontal/vertical shift, zero re-projection)",
+    "alignment_verified": true,
+    "alignment_reference": "Verified against Resources/lroc_color_2k.jpg with zero pixel offset (dx=0, dy=0)"
+  },
+  "generated_assets": [
+    {
+      "filename": "lroc_color_4k.webp",
+      "format": "WEBP",
+      "width": 4096,
+      "height": 2048,
+      "quality": 92,
+      "size_bytes": 1958504,
+      "intended_use": "Primary web client 4K texture with Three.SRGBColorSpace"
+    },
+    {
+      "filename": "lroc_color_4k.jpg",
+      "format": "JPEG",
+      "width": 4096,
+      "height": 2048,
+      "quality": 92,
+      "size_bytes": 2148760,
+      "intended_use": "Universal fallback 4K texture"
+    }
+  ]
+}

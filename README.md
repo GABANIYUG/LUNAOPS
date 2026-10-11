@@ -6,7 +6,7 @@ LUNAOPS is a high-fidelity, interactive 3D Moon visualization built with Three.j
 
 ## Features
 - **NASA LOLA Topographic Relief**: High-resolution 3D vertex displacement mapped directly from NASA LRO/LOLA DEM data (-8.98 km to +10.69 km elevation range).
-- **LROC True Color Mapping**: High-contrast surface albedo mapping using official Lunar Reconnaissance Orbiter Camera (LROC) global mosaic (`lroc_color_2k.jpg`).
+- **NASA Official 4K Color Mapping**: High-fidelity 4096 × 2048 surface albedo mapping using official Lunar Reconnaissance Orbiter Camera (LROC) mosaic (`lroc_color_4k.webp` / `lroc_color_4k.jpg` converted from NASA SVS #4720 16-bit sRGB TIFF) with graceful 2K fallback.
 - **DEM-Derived Normal Mapping**: Tangent-space normal mapping generated directly from elevation gradients to render sharp crater rims, rilles, and micro-topography.
 - **Dynamic Solar Terminator ("Sun Cycle")**: Directional solar illumination with animatable sun angles to observe changing crater shadow lengths along the lunar terminator, calibrated against NASA SVS reference visualization (`moon_mapping_720p30.webm`).
 - **Interactive Telemetry & Altimetry**: Real-time cursor raycaster measuring accurate lunar coordinates (Latitude / Longitude) and true scientific elevation (km) at the cursor point.
@@ -15,7 +15,7 @@ LUNAOPS is a high-fidelity, interactive 3D Moon visualization built with Three.j
 
 ## Prerequisites
 - **Node.js**: v18+ (for building and running the Vite web app)
-- **Python**: 3.10+ (for optional offline elevation map preprocessing)
+- **Python**: 3.10+ (for optional offline data preprocessing pipelines)
 
 ## Installation & Setup
 
@@ -30,18 +30,27 @@ LUNAOPS is a high-fidelity, interactive 3D Moon visualization built with Three.j
    ```
    *The application will be available at `http://localhost:5173/` by default.*
 
-## Data Processing (Optional)
+## Data Processing Pipelines
 
+### 1. NASA 4K Color Texture Preprocessing
+Converts official NASA 16-bit sRGB 4K TIFF (`lroc_color_16bit_srgb_4k.tif`, 61.9 MB) into browser-optimized WebP and high-quality JPEG textures:
+```bash
+python scripts/process_color_texture.py
+```
+*Outputs: `public/generated/lroc_color_4k.webp` (1.87 MB), `public/generated/lroc_color_4k.jpg` (2.05 MB), and `public/generated/lroc_color_metadata.json`.*
+
+### 2. Lunar Elevation DEM Preprocessing
 The original high-resolution lunar elevation dataset (`ldem_16.tif`, 63 MB) is provided in the `Resources` directory.
-If you need to process this DEM into a displacement map for the web client (e.g., for use with a basic sphere instead of the GLB model), run the Python pipeline:
+To process this DEM into displacement and normal maps for the web client:
 
 1. **Install Python dependencies:**
    ```bash
-   pip install tifffile numpy imageio
+   pip install tifffile numpy imageio pillow
    ```
-2. **Run the pipeline script:**
+2. **Run the pipeline scripts:**
    ```bash
    python scripts/process_ldem.py
+   python scripts/generate_normal_map.py
    ```
    *This reads the float32 GeoTIFF, correctly handles its min/max elevations, scales it to 16-bit grayscale, and exports `public/generated/ldem_displacement_16bit.png` and `public/generated/ldem_metadata.json` without modifying the source NASA file.*
 

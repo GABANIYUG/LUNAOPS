@@ -333,37 +333,72 @@ function applyReliefFactor(factor: number) {
   moonMesh.geometry.computeVertexNormals();
 }
 
+// ── Texture Configuration Helper ──────────────────────────────
+function configureColorTexture(tex: THREE.Texture): THREE.Texture {
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.generateMipmaps = true;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.needsUpdate = true;
+  return tex;
+}
+
 // ── Load all textures and build the moon ───────────────────────
 const textureLoader = new THREE.TextureLoader();
 
+interface ColorTextureResult {
+  texture: THREE.Texture;
+  label: string;
+  is4K: boolean;
+}
+
+async function loadColorTexture(): Promise<ColorTextureResult> {
+  const fallback2kUrl = new URL('../Resources/lroc_color_2k.jpg', import.meta.url).href;
+
+  const candidateSources = [
+    { url: '/generated/lroc_color_4k.webp', label: 'NASA LROC 4K (WebP)', is4K: true },
+    { url: '/generated/lroc_color_4k.jpg', label: 'NASA LROC 4K (JPEG)', is4K: true },
+    { url: fallback2kUrl, label: 'NASA LROC 2K (Fallback)', is4K: false },
+  ];
+
+  let lastError: unknown = null;
+  for (const candidate of candidateSources) {
+    try {
+      setLoadStatus(`Loading ${candidate.label}…`, candidate.is4K ? 12 : 25);
+      const tex = await new Promise<THREE.Texture>((resolve, reject) => {
+        textureLoader.load(
+          candidate.url,
+          (t) => resolve(t),
+          undefined,
+          (err) => reject(err),
+        );
+      });
+      configureColorTexture(tex);
+      console.log(`[LUNAOPS] Successfully loaded color texture: ${candidate.label} (${candidate.url})`);
+      return { texture: tex, label: candidate.label, is4K: candidate.is4K };
+    } catch (err) {
+      lastError = err;
+      console.warn(`[LUNAOPS] Could not load ${candidate.label} from ${candidate.url}. Trying next fallback…`, err);
+    }
+  }
+
+  throw new Error(`[LUNAOPS] All color texture candidates failed to load: ${lastError}`);
+}
+
 interface LoadedTextures {
   color: THREE.Texture;
+  colorLabel: string;
+  is4K: boolean;
   normal: THREE.Texture | null;
   displacement: THREE.Texture | null;
   displacementImg: HTMLImageElement | null;
 }
 
 async function loadTextures(): Promise<LoadedTextures> {
-  setLoadStatus('Loading NASA color texture…', 10);
-
-  // Import the color texture via Vite
-  const colorTex = await new Promise<THREE.Texture>((resolve, reject) => {
-    textureLoader.load(
-      new URL('../Resources/lroc_color_2k.jpg', import.meta.url).href,
-      (tex) => {
-        tex.colorSpace = THREE.SRGBColorSpace;
-        tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-        tex.minFilter = THREE.LinearMipmapLinearFilter;
-        tex.magFilter = THREE.LinearFilter;
-        tex.generateMipmaps = true;
-        tex.wrapS = THREE.RepeatWrapping;
-        tex.wrapT = THREE.ClampToEdgeWrapping;
-        resolve(tex);
-      },
-      undefined,
-      reject,
-    );
-  });
+  const { texture: colorTex, label: colorLabel, is4K } = await loadColorTexture();
 
   setLoadStatus('Loading DEM normal map…', 35);
 
@@ -409,11 +444,27 @@ async function loadTextures(): Promise<LoadedTextures> {
     console.warn('[LUNAOPS] Displacement map not available — using smooth sphere');
   }
 
-  return { color: colorTex, normal: normalTex, displacement: dispTex, displacementImg: dispImg };
+  return {
+    color: colorTex,
+    colorLabel,
+    is4K,
+    normal: normalTex,
+    displacement: dispTex,
+    displacementImg: dispImg,
+  };
 }
+
+let activeColorDetails = { label: 'NASA LROC 4K', is4K: true };
 
 async function buildMoon() {
   const textures = await loadTextures();
+  activeColorDetails = { label: textures.colorLabel, is4K: textures.is4K };
+
+  // Update telemetry readout if HUD is already initialized
+  const telemColorEl = document.getElementById('telem-color');
+  if (telemColorEl) {
+    telemColorEl.textContent = textures.is4K ? 'NASA LROC 4K' : 'NASA LROC 2K (Fallback)';
+  }
 
   setLoadStatus('Generating high-polygon sphere geometry…', 70);
 
@@ -516,7 +567,8 @@ hud.innerHTML = `
 <div class="hud-bottom">
   <div class="telemetry-bar">
     <span class="telem-item"><span class="telem-label">SRC</span> NASA LRO/LOLA</span>
-    <span class="telem-item"><span class="telem-label">RES</span> 16 px/°</span>
+    <span class="telem-item"><span class="telem-label">COLOR</span> <span id="telem-color">${activeColorDetails.is4K ? 'NASA LROC 4K' : 'NASA LROC 2K (Fallback)'}</span></span>
+    <span class="telem-item"><span class="telem-label">RES</span> 16 px/° DEM</span>
     <span class="telem-item"><span class="telem-label">ELEV</span> ${ELEV_MIN_KM.toFixed(1)} to +${ELEV_MAX_KM.toFixed(1)} km</span>
     <span class="telem-item"><span class="telem-label">REF</span> ${MOON_REAL_RADIUS_KM} km</span>
   </div>
