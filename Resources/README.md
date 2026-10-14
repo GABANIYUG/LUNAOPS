@@ -25,6 +25,7 @@ This directory contains the original NASA scientific assets used for the LUNAOPS
   - Preserves exact image coordinates with zero pixel translation (`dx=0`, `dy=0` vs baseline reference), zero cropping, zero flipping, and zero recoloring.
   - Generates `public/generated/lroc_color_4k.webp` (WebP quality 92, method 6, 1.87 MB).
   - Generates `public/generated/lroc_color_4k.jpg` (JPEG quality 92, optimize, 2.05 MB) for universal fallback.
+  - Provides `public/generated/lroc_color_2k.jpg` (2048 × 1024, 447 KB) for resilient fallback.
   - Exports provenance record `public/generated/lroc_color_metadata.json`.
 - **Runtime Web Integration**:
   - Color space: `THREE.SRGBColorSpace`.

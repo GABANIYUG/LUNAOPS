@@ -24,7 +24,7 @@
       "width": 4096,
       "height": 2048,
       "quality": 92,
-      "size_bytes": 1958504,
+      "size_bytes": 1961126,
       "intended_use": "Primary web client 4K texture with Three.SRGBColorSpace"
     },
     {
@@ -33,7 +33,7 @@
       "width": 4096,
       "height": 2048,
       "quality": 92,
-      "size_bytes": 2148760,
+      "size_bytes": 2153986,
       "intended_use": "Universal fallback 4K texture"
     }
   ]

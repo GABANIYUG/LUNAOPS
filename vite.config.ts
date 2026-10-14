@@ -3,6 +3,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   // Allows serving files from the project root and public folder
   server: {
+    host: true,
     fs: {
       allow: ['..', '.']
     }

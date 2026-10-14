@@ -361,6 +361,7 @@ async function loadColorTexture(): Promise<ColorTextureResult> {
   const candidateSources = [
     { url: '/generated/lroc_color_4k.webp', label: 'NASA LROC 4K (WebP)', is4K: true },
     { url: '/generated/lroc_color_4k.jpg', label: 'NASA LROC 4K (JPEG)', is4K: true },
+    { url: '/generated/lroc_color_2k.jpg', label: 'NASA LROC 2K (Fallback)', is4K: false },
     { url: fallback2kUrl, label: 'NASA LROC 2K (Fallback)', is4K: false },
   ];
 
