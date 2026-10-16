@@ -7,6 +7,11 @@ import base64
 import os
 import sys
 
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 try:
     import websockets
 except ImportError:
@@ -160,8 +165,18 @@ async def run_spice_verification():
         assert "MOON_ME" in (results.get("frame") or ""), "Reference frame is not MOON_ME"
         assert results.get("sceneNoteVisible"), "Scene note indicating light update was not displayed"
 
-        # 4. Capture full screenshot
-        print("Capturing live screenshot of the SPICE HUD on 3D Moon render...")
+        # 4. Verify Mission Badge & South Pole Focus Button
+        print("Testing Mission Badge and South Pole focus button...")
+        badge_text = await eval_js("document.querySelector('.mission-badge')?.textContent")
+        print("Mission badge:", badge_text)
+        assert "SOUTH POLE" in (badge_text or ""), f"Mission badge missing: {badge_text}"
+
+        print("Clicking South Pole button to orbit camera to South Pole...")
+        await eval_js("document.getElementById('btn-south-pole').click()")
+        await listen_for(1.8)  # wait for camera tween
+
+        # 5. Capture live screenshot of South Pole View
+        print("Capturing live screenshot of South Pole highlight view...")
         ss_id = await send("Page.captureScreenshot", {"format": "png"})
         screenshot_bytes = None
         while screenshot_bytes is None:
@@ -170,12 +185,25 @@ async def run_spice_verification():
             if data.get("id") == ss_id:
                 screenshot_bytes = base64.b64decode(data["result"]["data"])
 
-        screenshot_path = "spice_live_panel_render.png"
+        screenshot_path = "south_pole_highlight_render.png"
         with open(screenshot_path, "wb") as f:
             f.write(screenshot_bytes)
-        print(f"Saved live verification screenshot: {screenshot_path} ({len(screenshot_bytes):,} bytes)")
+        print(f"Saved live South Pole verification screenshot: {screenshot_path} ({len(screenshot_bytes):,} bytes)")
 
-        # 5. Test collapse and expand interaction
+        # 6. Test South Pole site presets in SPICE panel
+        print("Testing South Pole presets (clicking South Pole 90°S)...")
+        await eval_js("document.querySelectorAll('.spice-preset-btn')[1].click()")
+        await listen_for(1.5)
+
+        sp_results = await eval_js("""(() => {
+            const lat = document.getElementById('spice-lat')?.value;
+            const note = document.getElementById('spice-site-note')?.textContent;
+            return { lat, note };
+        })()""")
+        print("SPICE inputs after South Pole preset click:", sp_results)
+        assert float(sp_results.get("lat") or 0) <= -89.9, f"Preset did not set lat to -90: {sp_results}"
+
+        # 7. Test panel collapse / expand toggle
         print("Testing panel collapse / expand toggle...")
         await eval_js("document.querySelector('.spice-header').click()")
         await listen_for(0.3)
@@ -187,9 +215,9 @@ async def run_spice_verification():
         expanded = await eval_js("window.getComputedStyle(document.querySelector('.spice-body')).display !== 'none'")
         assert expanded, "Panel body did not expand upon header click"
 
-        # 6. Verify zero uncaught exceptions
+        # 8. Verify zero uncaught exceptions
         assert len(exceptions) == 0, f"Uncaught exceptions during test: {exceptions}"
-        print("SPICE PANEL VERIFICATION PASSED WITH ZERO ERRORS!")
+        print("ALL SOUTH POLE AND SPICE VERIFICATIONS PASSED WITH ZERO ERRORS!")
         return True
 
 

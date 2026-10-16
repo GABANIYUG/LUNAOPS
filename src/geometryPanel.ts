@@ -42,13 +42,26 @@ let _fetchInFlight = false;
 let _autoUpdate = false;
 let _autoInterval: ReturnType<typeof setInterval> | null = null;
 
-// Default site: an explicitly defined test location (NOT a real landing site)
+// Default site: NASA Artemis Site 01 Shackleton-de Gerlache Connecting Ridge
 const DEFAULT_SITE = {
-  lat: -85.0,
-  lon: 0.0,
-  elev: 0.0,
-  label: 'Test location — not a verified landing site',
+  lat: -89.463,
+  lon: 222.51,
+  elev: 1100.0,
+  label: 'Artemis Site 01 · Shackleton–de Gerlache Ridge',
 };
+
+let _panelElement: HTMLElement | null = null;
+
+export function setPanelSite(lat: number, lon: number, label: string) {
+  if (!_panelElement) return;
+  const latInput = _panelElement.querySelector<HTMLInputElement>('#spice-lat');
+  const lonInput = _panelElement.querySelector<HTMLInputElement>('#spice-lon');
+  const note = _panelElement.querySelector<HTMLDivElement>('#spice-site-note');
+  if (latInput) latInput.value = lat.toFixed(3);
+  if (lonInput) lonInput.value = lon.toFixed(2);
+  if (note) note.textContent = label;
+  triggerFetch(_panelElement);
+}
 
 // ---------------------------------------------------------------------------
 // Panel DOM construction
@@ -61,6 +74,7 @@ export function createGeometryPanel(lights: PanelLights): HTMLElement {
   panel.id = 'spice-panel';
   panel.innerHTML = buildPanelHTML();
   document.body.appendChild(panel);
+  _panelElement = panel;
 
   // Wire up controls
   panel.querySelector<HTMLButtonElement>('#spice-fetch-btn')!
@@ -68,6 +82,18 @@ export function createGeometryPanel(lights: PanelLights): HTMLElement {
 
   panel.querySelector<HTMLButtonElement>('#spice-auto-btn')!
     .addEventListener('click', () => toggleAutoUpdate(panel));
+
+  // South Pole site presets
+  panel.querySelectorAll<HTMLButtonElement>('.spice-preset-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const lat = parseFloat(btn.dataset.lat || '-90');
+      const lon = parseFloat(btn.dataset.lon || '0');
+      const label = btn.dataset.label || 'South Pole Site';
+      setPanelSite(lat, lon, label);
+      panel.querySelectorAll('.spice-preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
 
   // Collapse/expand toggle
   const header = panel.querySelector<HTMLDivElement>('.spice-header')!;
@@ -96,7 +122,7 @@ function buildPanelHTML(): string {
   return `
 <div class="spice-header">
   <span class="spice-title">☀ SPICE Geometry</span>
-  <span class="spice-subtitle">NASA/JPL · MOON_ME</span>
+  <span class="spice-subtitle">NASA/JPL · SOUTH POLE</span>
   <span class="spice-collapse-icon">▼</span>
 </div>
 <div class="spice-body">
@@ -106,21 +132,36 @@ function buildPanelHTML(): string {
   </div>
 
   <div class="spice-section">
-    <div class="spice-label">UTC TIME</div>
+    <div class="spice-label">PREDICT DATE / UTC TIME</div>
     <input type="text" id="spice-time-input" class="spice-input"
            placeholder="2026-10-16T12:00:00Z"
            title="ISO-8601 UTC timestamp with Z suffix" />
   </div>
 
   <div class="spice-section spice-site-section">
-    <div class="spice-label">SITE (TEST LOCATION)</div>
+    <div class="spice-label">SOUTH POLE CANDIDATE SITES</div>
+    <div class="spice-presets-row">
+      <button type="button" class="spice-preset-btn active"
+              data-lat="-89.463" data-lon="222.51"
+              data-label="Artemis Site 01 · Shackleton–de Gerlache Ridge"
+              title="NASA Artemis Candidate Site 01">Site 01 (Ridge)</button>
+      <button type="button" class="spice-preset-btn"
+              data-lat="-90.0" data-lon="0.0"
+              data-label="Geographic South Pole (90.0°S)"
+              title="True Lunar South Pole">South Pole 90°S</button>
+      <button type="button" class="spice-preset-btn"
+              data-lat="-89.78" data-lon="128.0"
+              data-label="Shackleton Crater Peak"
+              title="Shackleton Crater Rim Peak">Shackleton Rim</button>
+    </div>
+
     <div class="spice-site-grid">
       <label class="spice-label-sm">Lat °</label>
       <input type="number" id="spice-lat" class="spice-input-sm"
-             value="${DEFAULT_SITE.lat}" min="-90" max="90" step="0.1" />
+             value="${DEFAULT_SITE.lat}" min="-90" max="90" step="0.001" />
       <label class="spice-label-sm">Lon °</label>
       <input type="number" id="spice-lon" class="spice-input-sm"
-             value="${DEFAULT_SITE.lon}" min="-180" max="360" step="0.1" />
+             value="${DEFAULT_SITE.lon}" min="-180" max="360" step="0.01" />
     </div>
     <div class="spice-site-note" id="spice-site-note">${DEFAULT_SITE.label}</div>
   </div>

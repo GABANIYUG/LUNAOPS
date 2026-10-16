@@ -5,7 +5,8 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import './style.css';
-import { createGeometryPanel } from './geometryPanel';
+import { createGeometryPanel, setPanelSite } from './geometryPanel';
+import { SouthPoleOverlay } from './southPoleOverlay';
 
 // ── Constants ──────────────────────────────────────────────────
 const MOON_RADIUS = 1.6;                     // Display radius in scene units
@@ -19,13 +20,36 @@ const BG_COLOR = 0x010509;
 // ── State ──────────────────────────────────────────────────────
 let moonMesh: THREE.Mesh | null = null;
 let moonGroup: THREE.Group;
+let southPoleOverlay: SouthPoleOverlay | null = null;
 let autoRotate = true;
 let isWireframe = false;
 let sunAngle = 0.6;                          // Radians, animatable
 let animateSun = false;
+let isSouthPoleView = false;
 let displacementData: Float32Array | null = null;
 let originalPositions: Float32Array | null = null;
 let displacedPositions: Float32Array | null = null;
+
+// Camera transition state
+let cameraTween: {
+  startPos: THREE.Vector3;
+  targetPos: THREE.Vector3;
+  startLook: THREE.Vector3;
+  targetLook: THREE.Vector3;
+  startTime: number;
+  duration: number;
+} | null = null;
+
+function animateCameraTo(targetPos: THREE.Vector3, targetLook: THREE.Vector3, duration = 1.2) {
+  cameraTween = {
+    startPos: camera.position.clone(),
+    targetPos: targetPos.clone(),
+    startLook: controls.target.clone(),
+    targetLook: targetLook.clone(),
+    startTime: performance.now(),
+    duration: duration * 1000,
+  };
+}
 
 // ── Renderer ───────────────────────────────────────────────────
 const canvas = document.createElement('canvas');
@@ -497,6 +521,18 @@ async function buildMoon() {
   // Tilt the moon ~6.68° (axial tilt relative to ecliptic)
   moonGroup.rotation.x = THREE.MathUtils.degToRad(6.68);
   moonGroup.add(moonMesh);
+
+  // ── South Pole & Artemis Candidate Landing Sites Overlay ─────
+  southPoleOverlay = new SouthPoleOverlay(MOON_RADIUS);
+  southPoleOverlay.setOnSelectSite((site) => {
+    setPanelSite(site.lat, site.lon, `${site.name} · ${site.designation}`);
+    const coordsEl = document.getElementById('readout-coords');
+    const elevEl = document.getElementById('readout-elev');
+    if (coordsEl) coordsEl.textContent = `${Math.abs(site.lat).toFixed(2)}° S, ${site.lon.toFixed(1)}° E`;
+    if (elevEl) elevEl.textContent = `${site.elevationM >= 0 ? '+' : ''}${(site.elevationM / 1000).toFixed(2)} km`;
+  });
+  moonGroup.add(southPoleOverlay.group);
+
   scene.add(moonGroup);
 
   // ── Limb atmosphere glow (Fresnel rim effect) ─────────────────
@@ -551,6 +587,7 @@ hud.innerHTML = `
   <div class="brand">
     <h1 class="title">LUNAOPS</h1>
     <p class="subtitle">SELENE LABS · NASA Space Apps 2026</p>
+    <div class="mission-badge"><span class="mission-badge-dot"></span>MISSION FOCUS: LUNAR SOUTH POLE LANDING SAFETY</div>
     <div class="data-readout" id="data-readout">
       <span class="readout-label">COORDINATES</span>
       <span class="readout-value" id="readout-coords">—</span>
@@ -559,6 +596,7 @@ hud.innerHTML = `
     </div>
   </div>
   <div class="controls-panel">
+    <button id="btn-south-pole" title="Focus camera directly on Lunar South Pole & Artemis Candidate Sites">🎯 South Pole</button>
     <button id="btn-reset" title="Reset camera to default view">⟲ Reset</button>
     <button id="btn-auto" title="Toggle auto-rotation">⏸ Auto-Rotate</button>
     <button id="btn-topo" class="active" title="Toggle 3D elevation relief scale">⛰ Relief: 1× (True Scale)</button>
@@ -584,10 +622,36 @@ document.body.appendChild(hud);
 createGeometryPanel({ sunLight, earthshineLight });
 
 // ── Button handlers ────────────────────────────────────────────
+document.getElementById('btn-south-pole')!.addEventListener('click', () => {
+  isSouthPoleView = !isSouthPoleView;
+  const btn = document.getElementById('btn-south-pole')!;
+  btn.classList.toggle('active', isSouthPoleView);
+
+  if (isSouthPoleView) {
+    // Smoothly orbit camera directly underneath to inspect South Pole (90°S)
+    animateCameraTo(
+      new THREE.Vector3(0, -2.75, 0.7),
+      new THREE.Vector3(0, -0.2, 0),
+      1.3
+    );
+  } else {
+    // Return to default equatorial vantage
+    animateCameraTo(
+      new THREE.Vector3(0, 0.2, 4.0),
+      new THREE.Vector3(0, 0, 0),
+      1.2
+    );
+  }
+});
+
 document.getElementById('btn-reset')!.addEventListener('click', () => {
-  camera.position.set(0, 0.2, 4.0);
-  controls.target.set(0, 0, 0);
-  controls.update();
+  isSouthPoleView = false;
+  document.getElementById('btn-south-pole')?.classList.remove('active');
+  animateCameraTo(
+    new THREE.Vector3(0, 0.2, 4.0),
+    new THREE.Vector3(0, 0, 0),
+    1.0
+  );
 });
 
 document.getElementById('btn-auto')!.addEventListener('click', () => {
@@ -639,6 +703,15 @@ canvas.addEventListener('mouseleave', () => {
   const elevEl = document.getElementById('readout-elev');
   if (coordsEl) coordsEl.textContent = '—';
   if (elevEl) elevEl.textContent = '—';
+});
+
+// Click interaction on South Pole markers
+canvas.addEventListener('click', (e) => {
+  if (!southPoleOverlay) return;
+  const hitSite = southPoleOverlay.handleClick(e, camera);
+  if (hitSite) {
+    console.log(`[LUNAOPS] Selected landing site: ${hitSite.name} (${hitSite.lat}°S, ${hitSite.lon}°E)`);
+  }
 });
 
 function updateElevationReadout() {
@@ -697,6 +770,28 @@ function animate() {
   const dt = clock.getDelta();
   const elapsed = clock.getElapsedTime();
   controls.update();
+
+  // Smooth camera tween
+  if (cameraTween) {
+    const tweenElapsed = performance.now() - cameraTween.startTime;
+    const progress = Math.min(1, tweenElapsed / cameraTween.duration);
+    const ease = progress < 0.5
+      ? 4 * progress * progress * progress
+      : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+    camera.position.lerpVectors(cameraTween.startPos, cameraTween.targetPos, ease);
+    controls.target.lerpVectors(cameraTween.startLook, cameraTween.targetLook, ease);
+    controls.update();
+
+    if (progress >= 1) {
+      cameraTween = null;
+    }
+  }
+
+  // Update South Pole reticles and landing site beacon animations
+  if (southPoleOverlay) {
+    southPoleOverlay.update(elapsed);
+  }
 
   // Slow, gentle auto-rotation (real moon synodic rotation ~ 27.3 days)
   if (moonGroup && autoRotate) {
