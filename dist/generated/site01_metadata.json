@@ -1,0 +1,12 @@
+{
+  "dataset": "NASA LOLA Artemis Site 01 Shackleton-de Gerlache Connecting Ridge",
+  "center_lat": -89.463162834037,
+  "center_lon_E": 222.51044707800082,
+  "elev_min_m": -398.09478759765625,
+  "elev_max_m": 1958.64453125,
+  "slope_max_deg": 64.58820343017578,
+  "uncertainty_max_m": 5.582818508148193,
+  "mesh_size": 512,
+  "scene_radius": 1.6,
+  "lunar_radius_m": 1737400.0
+}

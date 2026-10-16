@@ -5,6 +5,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import './style.css';
+import { createGeometryPanel } from './geometryPanel';
 
 // ── Constants ──────────────────────────────────────────────────
 const MOON_RADIUS = 1.6;                     // Display radius in scene units
@@ -577,6 +578,10 @@ hud.innerHTML = `
 </div>
 `;
 document.body.appendChild(hud);
+
+// ── SPICE Geometry Panel ───────────────────────────────────────
+// Pass the scene lights so the panel can update Sun direction from SPICE.
+createGeometryPanel({ sunLight, earthshineLight });
 
 // ── Button handlers ────────────────────────────────────────────
 document.getElementById('btn-reset')!.addEventListener('click', () => {
