@@ -28,7 +28,14 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
 import spice_service
-from schemas import GeometryRequest
+import horizon_service
+import timeline_service
+from schemas import (
+    GeometryRequest,
+    HorizonProfileRequest,
+    HorizonVisibilityRequest,
+    MissionTimelineRequest,
+)
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -186,3 +193,187 @@ async def geometry(request: GeometryRequest) -> dict[str, Any]:
         ) from exc
 
     return result
+
+
+# ---------------------------------------------------------------------------
+# Horizon endpoints  (Phase 3B)
+# ---------------------------------------------------------------------------
+
+@app.post(
+    "/api/horizon/profile",
+    summary="Compute a 360-degree terrain horizon profile for a lunar surface site",
+    response_model=dict,
+    tags=["Horizon"],
+)
+async def horizon_profile(request: HorizonProfileRequest) -> dict:
+    """
+    Ray-march the NASA Site 01 5 m/px DEM along every azimuth at the requested
+    angular resolution to produce a local terrain skyline (horizon) profile.
+
+    **Coverage**: Only sites inside the 16×16 km Site 01 raster tile
+    (-19 km ≤ x ≤ -3 km, -20 km ≤ y ≤ -4 km polar stereo) will return
+    genuine terrain elevation angles. Sites outside this tile return a flat
+    0° profile with ``is_inside_dem=false``.
+
+    **Performance**: A full 360° profile at 2° resolution completes in
+    roughly 0.5 – 2 seconds on a standard CPU (3200-step rays × 180 azimuths).
+    Profiles are cached in memory by site coordinates.
+    """
+    # Ensure DEM is loaded (lazy)
+    if not horizon_service._dem_loaded:
+        horizon_service.load_dem_dataset()
+
+    try:
+        result = horizon_service.compute_horizon_profile(
+            lon_deg=request.longitude_deg,
+            lat_deg=request.latitude_deg,
+            elevation_m=request.elevation_m,
+            instrument_height_m=request.instrument_height_m,
+            angular_step_deg=request.angular_step_deg,
+        )
+        is_inside = horizon_service.is_inside_site01(request.longitude_deg, request.latitude_deg)
+        return {
+            **result,
+            "instrument_height_m": request.instrument_height_m,
+            "dem_dataset": "NASA LOLA Artemis Site 01 (5 m/px, Polar Stereographic)",
+            "is_inside_dem": is_inside,
+            "dem_loaded": horizon_service._dem_loaded,
+        }
+    except Exception as exc:
+        logger.exception("Horizon profile calculation failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": "Horizon profile calculation failed", "message": str(exc)},
+        ) from exc
+
+
+@app.post(
+    "/api/horizon/visibility",
+    summary="Evaluate Sun and Earth terrain-aware line-of-sight visibility",
+    response_model=dict,
+    tags=["Horizon"],
+)
+async def horizon_visibility(request: HorizonVisibilityRequest) -> dict:
+    """
+    Combine SPICE-derived Sun and Earth geometric directions with the local
+    terrain horizon to assess whether each target is obstructed by terrain
+    or occulted by the lunar body.
+
+    **Input**: The Sun and Earth azimuth/elevation values should be taken
+    directly from the ``/api/spice/geometry`` response for the desired epoch.
+
+    **Output**: For each target, returns:
+    - ``visibility_status``: one of ``no_obstruction_detected_within_coverage``,
+      ``near_horizon_grazing``, ``blocked_by_local_terrain``,
+      ``blocked_by_lunar_body``, ``unknown_insufficient_coverage``,
+      ``calculation_unavailable``.
+    - ``angular_clearance_deg``: target elevation minus terrain skyline elevation.
+    - ``terrain_horizon_elevation_deg``: terrain skyline elevation in the
+      target's azimuth direction.
+    """
+    # Ensure DEM is loaded (lazy)
+    if not horizon_service._dem_loaded:
+        horizon_service.load_dem_dataset()
+
+    try:
+        sun_result = horizon_service.evaluate_target_obstruction(
+            target_name="Sun",
+            target_az_deg=request.sun_azimuth_deg,
+            target_el_deg=request.sun_elevation_deg,
+            target_dist_km=request.sun_distance_km,
+            lon_deg=request.longitude_deg,
+            lat_deg=request.latitude_deg,
+            elevation_m=request.elevation_m,
+            instrument_height_m=request.instrument_height_m,
+        )
+        earth_result = horizon_service.evaluate_target_obstruction(
+            target_name="Earth",
+            target_az_deg=request.earth_azimuth_deg,
+            target_el_deg=request.earth_elevation_deg,
+            target_dist_km=request.earth_distance_km,
+            lon_deg=request.longitude_deg,
+            lat_deg=request.latitude_deg,
+            elevation_m=request.elevation_m,
+            instrument_height_m=request.instrument_height_m,
+        )
+
+        is_inside = horizon_service.is_inside_site01(request.longitude_deg, request.latitude_deg)
+
+        return {
+            "site": {
+                "latitude_deg": request.latitude_deg,
+                "longitude_deg": request.longitude_deg,
+                "elevation_m": request.elevation_m,
+                "instrument_height_m": request.instrument_height_m,
+                "is_inside_dem": is_inside,
+            },
+            "sun": sun_result,
+            "earth": earth_result,
+            "dem_dataset": "NASA LOLA Artemis Site 01 (5 m/px, Polar Stereographic)",
+            "dem_loaded": horizon_service._dem_loaded,
+            "note": (
+                "Terrain-aware visibility based on ray-marching the Site 01 5 m/px DEM. "
+                "A positive clearance does not guarantee optical visibility (dust, lighting, hardware). "
+                "Aberration correction: NONE (geometric directions from SPICE)."
+            ),
+        }
+    except Exception as exc:
+        logger.exception("Horizon visibility evaluation failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": "Horizon visibility evaluation failed", "message": str(exc)},
+        ) from exc
+
+
+# ---------------------------------------------------------------------------
+# Timeline and Mission Window endpoints (Phase 4)
+# ---------------------------------------------------------------------------
+
+@app.post(
+    "/api/mission/timeline",
+    summary="Calculate time-dependent Sun and Earth visibility windows across a mission timeline",
+    response_model=dict,
+    tags=["Mission Timeline"],
+)
+async def mission_timeline(request: MissionTimelineRequest) -> dict:
+    """
+    Sample a mission interval to calculate sunlight illumination windows and
+    potential Direct-to-Earth line-of-sight intervals.
+
+    - Samples interval using configurable step_minutes.
+    - Topocentric Sun and Earth geometry derived from NASA/JPL SPICE kernels.
+    - Apparent angular radii modeled: Sun (0.26°) and Earth (0.95°).
+    - Ray-marches NASA Site 01 5m/px DEM for terrain skyline elevation.
+    - Numerically refines visibility transition boundaries via bisection.
+    - Strictly checks SPICE coverage (1900–2050 UTC) and DEM boundaries.
+    """
+    if not spice_service._initialized:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"error": "SPICE not initialised", "message": "Call /api/spice/health for details."},
+        )
+
+    try:
+        result = timeline_service.calculate_mission_timeline(
+            start_utc=request.start_utc,
+            end_utc=request.end_utc,
+            latitude_deg=request.latitude_deg,
+            longitude_deg=request.longitude_deg,
+            elevation_m=request.elevation_m,
+            instrument_height_m=request.instrument_height_m,
+            step_minutes=request.step_minutes,
+            refinement_tolerance_sec=request.refinement_tolerance_sec,
+        )
+        return result
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"error": "Invalid mission timeline parameters", "message": str(exc)},
+        ) from exc
+    except Exception as exc:
+        logger.exception("Mission timeline calculation failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": "Mission timeline calculation failed", "message": str(exc)},
+        ) from exc
+

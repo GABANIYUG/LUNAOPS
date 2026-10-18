@@ -100,6 +100,226 @@ export async function fetchGeometry(req: GeometryRequest): Promise<GeometryRespo
 }
 
 // ---------------------------------------------------------------------------
+// Horizon API types and calls (Phase 3B)
+// ---------------------------------------------------------------------------
+
+export interface HorizonPoint {
+  azimuth_deg: number;
+  horizon_elevation_deg: number;
+  horizon_distance_m: number;
+  coverage_distance_m: number;
+}
+
+export interface HorizonProfileResponse {
+  site_lon_deg: number;
+  site_lat_deg: number;
+  angular_step_deg: number;
+  profile: HorizonPoint[];
+  instrument_height_m: number;
+  dem_dataset: string;
+  is_inside_dem: boolean;
+  dem_loaded: boolean;
+}
+
+export interface TargetObstruction {
+  target: string;
+  azimuth_deg: number;
+  geometric_elevation_deg: number;
+  terrain_horizon_elevation_deg: number | null;
+  angular_clearance_deg: number | null;
+  horizon_distance_m: number | null;
+  coverage_distance_m?: number;
+  visibility_status:
+    | 'no_obstruction_detected_within_coverage'
+    | 'near_horizon_grazing'
+    | 'blocked_by_local_terrain'
+    | 'blocked_by_lunar_body'
+    | 'unknown_insufficient_coverage'
+    | 'calculation_unavailable';
+  coverage_limited: boolean;
+  note: string;
+}
+
+export interface HorizonVisibilityResponse {
+  site: {
+    latitude_deg: number;
+    longitude_deg: number;
+    elevation_m: number | null;
+    instrument_height_m: number;
+    is_inside_dem: boolean;
+  };
+  sun: TargetObstruction;
+  earth: TargetObstruction;
+  dem_dataset: string;
+  dem_loaded: boolean;
+  note: string;
+}
+
+export interface HorizonProfileRequest {
+  latitude_deg: number;
+  longitude_deg: number;
+  elevation_m?: number;
+  instrument_height_m?: number;
+  angular_step_deg?: number;
+}
+
+export interface HorizonVisibilityRequest {
+  latitude_deg: number;
+  longitude_deg: number;
+  elevation_m?: number;
+  instrument_height_m?: number;
+  sun_azimuth_deg: number;
+  sun_elevation_deg: number;
+  sun_distance_km: number;
+  earth_azimuth_deg: number;
+  earth_elevation_deg: number;
+  earth_distance_km: number;
+}
+
+export async function fetchHorizonProfile(req: HorizonProfileRequest): Promise<HorizonProfileResponse> {
+  const resp = await fetch(`${SPICE_API_BASE}/api/horizon/profile`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!resp.ok) {
+    let msg = `Horizon profile failed: HTTP ${resp.status}`;
+    try {
+      const err = await resp.json();
+      msg += ` — ${err?.detail?.message ?? JSON.stringify(err)}`;
+    } catch { /* ignore */ }
+    throw new Error(msg);
+  }
+  return resp.json() as Promise<HorizonProfileResponse>;
+}
+
+export async function fetchHorizonVisibility(req: HorizonVisibilityRequest): Promise<HorizonVisibilityResponse> {
+  const resp = await fetch(`${SPICE_API_BASE}/api/horizon/visibility`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!resp.ok) {
+    let msg = `Horizon visibility failed: HTTP ${resp.status}`;
+    try {
+      const err = await resp.json();
+      msg += ` — ${err?.detail?.message ?? JSON.stringify(err)}`;
+    } catch { /* ignore */ }
+    throw new Error(msg);
+  }
+  return resp.json() as Promise<HorizonVisibilityResponse>;
+}
+
+// ---------------------------------------------------------------------------
+// Mission Timeline API types and calls (Phase 4)
+// ---------------------------------------------------------------------------
+
+export interface MissionTimelineRequest {
+  start_utc: string;
+  end_utc: string;
+  latitude_deg: number;
+  longitude_deg: number;
+  elevation_m?: number;
+  instrument_height_m?: number;
+  step_minutes?: number;
+  refinement_tolerance_sec?: number;
+}
+
+export interface TimelineWindow {
+  start_utc: string;
+  end_utc: string;
+  duration_hours: number;
+  state: string;
+}
+
+export interface TimelineTargetPoint {
+  azimuth_deg: number;
+  elevation_deg: number;
+  angular_radius_deg: number;
+  distance_km: number;
+  terrain_horizon_elevation_deg: number | null;
+  horizon_distance_m: number | null;
+  angular_clearance_deg: number | null;
+  visibility_state: string;
+  direction_unit: [number, number, number];
+}
+
+export interface TimelineSample {
+  timestamp_utc: string;
+  sun: TimelineTargetPoint;
+  earth: TimelineTargetPoint;
+}
+
+export interface TimelineSummary {
+  sunlight: {
+    full_sunlight_hours: number;
+    full_sunlight_percent: number;
+    partial_sunlight_hours: number;
+    partial_sunlight_percent: number;
+    total_darkness_hours: number;
+    total_darkness_percent: number;
+    unknown_coverage_hours: number;
+    max_continuous_sunlight_hours: number;
+    max_continuous_darkness_hours: number;
+    transition_count: number;
+  };
+  earth_los: {
+    full_disc_los_hours: number;
+    full_disc_los_percent: number;
+    partial_disc_los_hours: number;
+    partial_disc_los_percent: number;
+    occulted_hours: number;
+    occulted_percent: number;
+    unknown_coverage_hours: number;
+    max_continuous_los_hours: number;
+    transition_count: number;
+    communication_disclaimer: string;
+  };
+}
+
+export interface MissionTimelineResponse {
+  mission_scenario: {
+    start_utc: string;
+    end_utc: string;
+    total_duration_hours: number;
+    step_minutes: number;
+    refinement_tolerance_sec: number;
+    sample_count: number;
+  };
+  site: {
+    latitude_deg: number;
+    longitude_deg: number;
+    elevation_m: number;
+    instrument_height_m: number;
+    is_inside_dem: boolean;
+    dem_dataset: string;
+  };
+  summary: TimelineSummary;
+  sun_windows: TimelineWindow[];
+  earth_windows: TimelineWindow[];
+  samples: TimelineSample[];
+}
+
+export async function fetchMissionTimeline(req: MissionTimelineRequest): Promise<MissionTimelineResponse> {
+  const resp = await fetch(`${SPICE_API_BASE}/api/mission/timeline`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!resp.ok) {
+    let msg = `Mission timeline calculation failed: HTTP ${resp.status}`;
+    try {
+      const err = await resp.json();
+      msg += ` — ${err?.detail?.message ?? JSON.stringify(err)}`;
+    } catch { /* ignore */ }
+    throw new Error(msg);
+  }
+  return resp.json() as Promise<MissionTimelineResponse>;
+}
+
+
+
+// ---------------------------------------------------------------------------
 // MOON_ME → Three.js scene coordinate transform
 // ---------------------------------------------------------------------------
 /**

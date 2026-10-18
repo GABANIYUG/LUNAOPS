@@ -7,6 +7,14 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import './style.css';
 import { createGeometryPanel, setPanelSite } from './geometryPanel';
 import { SouthPoleOverlay } from './southPoleOverlay';
+import { MissionWorkspace } from './missionWorkspace';
+import { moonMeToScene } from './spiceClient';
+import {
+  moonVectorToSelenographic,
+  selenographicToMoonVector,
+  formatSelenographicCoords,
+} from './utils/coordinates';
+import type { LandingSiteConfig } from './types/mission';
 
 // ── Constants ──────────────────────────────────────────────────
 const MOON_RADIUS = 1.6;                     // Display radius in scene units
@@ -21,6 +29,8 @@ const BG_COLOR = 0x010509;
 let moonMesh: THREE.Mesh | null = null;
 let moonGroup: THREE.Group;
 let southPoleOverlay: SouthPoleOverlay | null = null;
+let missionWorkspace: MissionWorkspace | null = null;
+let targetSiteMarker: THREE.Group | null = null;
 let autoRotate = true;
 let isWireframe = false;
 let sunAngle = 0.6;                          // Radians, animatable
@@ -596,6 +606,7 @@ hud.innerHTML = `
     </div>
   </div>
   <div class="controls-panel">
+    <button id="btn-new-mission" title="Launch Mission Scenario Configuration & Landing Site Selection">🚀 New Mission Analysis</button>
     <button id="btn-south-pole" title="Focus camera directly on Lunar South Pole & Artemis Candidate Sites">🎯 South Pole</button>
     <button id="btn-reset" title="Reset camera to default view">⟲ Reset</button>
     <button id="btn-auto" title="Toggle auto-rotation">⏸ Auto-Rotate</button>
@@ -620,6 +631,102 @@ document.body.appendChild(hud);
 // ── SPICE Geometry Panel ───────────────────────────────────────
 // Pass the scene lights so the panel can update Sun direction from SPICE.
 createGeometryPanel({ sunLight, earthshineLight });
+
+// ── Mission Configuration Workspace (Phase 3A) ─────────────────
+missionWorkspace = new MissionWorkspace();
+document.getElementById('btn-new-mission')!.addEventListener('click', () => {
+  missionWorkspace?.toggle();
+});
+
+// Function to update the 3D target site marker
+function updateTargetSiteMarker(site: LandingSiteConfig) {
+  if (!moonGroup) return;
+
+  if (!targetSiteMarker) {
+    targetSiteMarker = new THREE.Group();
+    targetSiteMarker.name = 'TargetSiteMarker';
+
+    // Outer cyan ring
+    const ringGeo = new THREE.RingGeometry(0.012, 0.018, 32);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.9,
+    });
+    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+    targetSiteMarker.add(ringMesh);
+
+    // Inner bright point
+    const dotGeo = new THREE.SphereGeometry(0.006, 16, 16);
+    const dotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const dotMesh = new THREE.Mesh(dotGeo, dotMat);
+    targetSiteMarker.add(dotMesh);
+
+    // Vertical beacon pointer
+    const lineGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, 0, 0.06),
+    ]);
+    const lineMat = new THREE.LineBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.85,
+    });
+    const line = new THREE.Line(lineGeo, lineMat);
+    targetSiteMarker.add(line);
+
+    moonGroup.add(targetSiteMarker);
+  }
+
+  // Calculate local vector on Moon sphere
+  const localPos = selenographicToMoonVector(site.latitudeDeg, site.longitudeDeg, MOON_RADIUS * 1.002);
+  targetSiteMarker.position.copy(localPos);
+
+  // Orient marker to face outward along normal
+  const normal = localPos.clone().normalize();
+  targetSiteMarker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+
+  // Synchronize readout and SPICE panel
+  const coordsEl = document.getElementById('readout-coords');
+  const elevEl = document.getElementById('readout-elev');
+  if (coordsEl) coordsEl.textContent = formatSelenographicCoords(site.latitudeDeg, site.longitudeDeg);
+  if (elevEl) elevEl.textContent = `${site.elevationM >= 0 ? '+' : ''}${(site.elevationM / 1000).toFixed(2)} km`;
+  setPanelSite(site.latitudeDeg, site.longitudeDeg, `${site.name} · ${site.designation}`);
+}
+
+missionWorkspace.setOnSiteChanged((site) => {
+  updateTargetSiteMarker(site);
+});
+
+missionWorkspace.setOnTimelineScrubbed((sample) => {
+  // Update directional sunlight in the Three.js scene to match real topocentric/MOON_ME ephemerides
+  const [sx, sy, sz] = moonMeToScene(sample.sun.direction_unit);
+  const r = 8.0;
+  sunLight.position.set(sx * r, sy * r, sz * r);
+
+  // Update telemetry and UTC readout
+  const telemAzEl = document.getElementById('telem-sun-az');
+  if (telemAzEl) {
+    telemAzEl.textContent = `${sample.sun.azimuth_deg.toFixed(1)}° / ${sample.sun.elevation_deg.toFixed(1)}°`;
+  }
+  const clockEl = document.getElementById('utc-clock');
+  if (clockEl) {
+    clockEl.textContent = sample.timestamp_utc;
+  }
+});
+
+// Initialize target marker for default site
+updateTargetSiteMarker({
+  name: 'Artemis Site 01',
+  designation: 'Shackleton–de Gerlache Ridge',
+  latitudeDeg: -89.463,
+  longitudeDeg: 222.51,
+  elevationM: 1100.0,
+  coordinateConvention: 'Latitude -90° to +90° (South negative); Longitude 0° to 360° East-positive',
+  referenceDatum: 'IAU Moon 2000 Sphere',
+  isInsideSite01DEM: true,
+});
 
 // ── Button handlers ────────────────────────────────────────────
 document.getElementById('btn-south-pole')!.addEventListener('click', () => {
@@ -705,12 +812,32 @@ canvas.addEventListener('mouseleave', () => {
   if (elevEl) elevEl.textContent = '—';
 });
 
-// Click interaction on South Pole markers
+// Click interaction on South Pole markers or global Moon surface
 canvas.addEventListener('click', (e) => {
-  if (!southPoleOverlay) return;
-  const hitSite = southPoleOverlay.handleClick(e, camera);
-  if (hitSite) {
-    console.log(`[LUNAOPS] Selected landing site: ${hitSite.name} (${hitSite.lat}°S, ${hitSite.lon}°E)`);
+  // Check if clicked on a south pole preset marker first
+  if (southPoleOverlay) {
+    const hitSite = southPoleOverlay.handleClick(e, camera);
+    if (hitSite) {
+      console.log(`[LUNAOPS] Selected preset site: ${hitSite.name} (${hitSite.lat}°S, ${hitSite.lon}°E)`);
+      if (missionWorkspace) {
+        missionWorkspace.setCoordinatesFromGlobe(hitSite.lat, hitSite.lon);
+      }
+      return;
+    }
+  }
+
+  // Check if clicked directly on Moon surface
+  if (!moonMesh) return;
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObject(moonMesh);
+  if (intersects.length > 0) {
+    const hit = intersects[0];
+    const localHit = moonMesh.worldToLocal(hit.point.clone());
+    const { latDeg, lonDeg } = moonVectorToSelenographic(localHit, MOON_RADIUS);
+    console.log(`[LUNAOPS] Moon surface clicked: ${formatSelenographicCoords(latDeg, lonDeg)}`);
+    if (missionWorkspace) {
+      missionWorkspace.setCoordinatesFromGlobe(latDeg, lonDeg);
+    }
   }
 });
 
@@ -725,23 +852,19 @@ function updateElevationReadout() {
 
   if (intersects.length > 0) {
     const hit = intersects[0];
-    const face = hit.face;
-    if (!face) return;
+    const localHit = moonMesh.worldToLocal(hit.point.clone());
+    const { latDeg, lonDeg } = moonVectorToSelenographic(localHit, MOON_RADIUS);
 
-    // Get the UV from the intersection
-    const uv = hit.uv;
-    if (uv) {
-      // Convert UV to lat/lon
-      const lon = (uv.x * 360 - 180).toFixed(1);
-      const lat = ((1 - uv.y) * 180 - 90).toFixed(1);
-      if (coordsEl) coordsEl.textContent = `${lat}° N, ${lon}° E`;
-    }
+    if (coordsEl) coordsEl.textContent = formatSelenographicCoords(latDeg, lonDeg);
 
     // Get elevation from nearest vertex
-    const vertIdx = face.a;
-    if (vertIdx < displacementData.length) {
-      const elev = displacementData[vertIdx];
-      if (elevEl) elevEl.textContent = `${elev >= 0 ? '+' : ''}${elev.toFixed(2)} km`;
+    const face = hit.face;
+    if (face) {
+      const vertIdx = face.a;
+      if (vertIdx < displacementData.length) {
+        const elev = displacementData[vertIdx];
+        if (elevEl) elevEl.textContent = `${elev >= 0 ? '+' : ''}${elev.toFixed(2)} km`;
+      }
     }
   } else {
     if (coordsEl) coordsEl.textContent = '—';
