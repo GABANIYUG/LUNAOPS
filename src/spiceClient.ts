@@ -300,6 +300,139 @@ export interface MissionTimelineResponse {
   samples: TimelineSample[];
 }
 
+export interface CandidateScenarioPayload {
+  id: string;
+  name: string;
+  latitude_deg: number;
+  longitude_deg: number;
+  elevation_m: number;
+  instrument_height_m: number;
+  start_utc: string;
+  end_utc: string;
+  step_minutes: number;
+}
+
+export interface ComparisonConstraintsPayload {
+  min_sunlight_percent?: number | null;
+  min_earth_los_percent?: number | null;
+  max_slope_deg?: number | null;
+  max_continuous_darkness_hours?: number | null;
+  min_elevation_m?: number | null;
+}
+
+export interface CandidateComparisonRequest {
+  scenarios: CandidateScenarioPayload[];
+  constraints?: ComparisonConstraintsPayload | null;
+  ranking_weights?: Record<string, number> | null;
+}
+
+export interface ConstraintEvaluationItem {
+  id: string;
+  label: string;
+  threshold: string;
+  actual: string;
+  status: 'met' | 'unmet' | 'unevaluable';
+  reason: string;
+}
+
+export interface ScenarioComparisonResult {
+  scenario_id: string;
+  scenario_name: string;
+  inputs: {
+    latitude_deg: number;
+    longitude_deg: number;
+    elevation_m: number;
+    instrument_height_m: number;
+    start_utc: string;
+    end_utc: string;
+    step_minutes: number;
+  };
+  validation: {
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+    is_inside_dem: boolean;
+  };
+  timeline_result: MissionTimelineResponse;
+  terrain_statistics: {
+    coverage_available: boolean;
+    dataset_name: string | null;
+    sample_radius_m: number;
+    pixel_samples_count?: number;
+    elevation: {
+      point_m: number;
+      mean_m: number;
+      min_m: number;
+      max_m: number;
+      std_m: number;
+      roughness_m: number;
+    } | null;
+    slope: {
+      point_deg: number;
+      mean_deg: number;
+      min_deg: number;
+      max_deg: number;
+      std_deg: number;
+    } | null;
+    uncertainty: {
+      point_m: number;
+      mean_m: number;
+      max_m: number;
+    } | null;
+    note: string;
+  };
+  constraints_evaluation: {
+    items: ConstraintEvaluationItem[];
+    met_count: number;
+    unmet_count: number;
+    unevaluable_count: number;
+    all_met: boolean;
+  };
+}
+
+export interface CandidateComparisonResponse {
+  compared_count: number;
+  comparison_table: Array<{
+    scenario_id: string;
+    scenario_name: string;
+    location: string;
+    time_range: string;
+    duration_hours: number;
+    dem_coverage: string;
+    illumination_duration_hours: number;
+    illumination_percent: number;
+    max_continuous_sunlight_hours: number;
+    max_continuous_darkness_hours: number;
+    earth_los_duration_hours: number;
+    earth_los_percent: number;
+    max_continuous_earth_los_hours: number;
+    elevation_readout: string;
+    slope_readout: string;
+    uncertainty_readout: string;
+    constraints_summary: string;
+  }>;
+  scenarios: ScenarioComparisonResult[];
+  ranking: {
+    applied_weights: Record<string, number>;
+    ranking: Array<{
+      scenario_id: string;
+      scenario_name: string;
+      rank: number;
+      composite_score: number;
+      has_unevaluable_metrics: boolean;
+      unevaluable_reasons: string[];
+      criteria_scores: Record<string, number | null>;
+      effective_weight_coverage: number;
+    }>;
+    disclaimer: string;
+  };
+  scientific_notes: {
+    topocentric_geometry: string;
+    terrain_skyline: string;
+    operational_disclaimer: string;
+  };
+}
+
 export async function fetchMissionTimeline(req: MissionTimelineRequest): Promise<MissionTimelineResponse> {
   const resp = await fetch(`${SPICE_API_BASE}/api/mission/timeline`, {
     method: 'POST',
@@ -316,6 +449,27 @@ export async function fetchMissionTimeline(req: MissionTimelineRequest): Promise
   }
   return resp.json() as Promise<MissionTimelineResponse>;
 }
+
+export async function fetchCandidateComparison(
+  req: CandidateComparisonRequest,
+): Promise<CandidateComparisonResponse> {
+  const resp = await fetch(`${SPICE_API_BASE}/api/mission/compare`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!resp.ok) {
+    let msg = `Candidate comparison failed: HTTP ${resp.status}`;
+    try {
+      const err = await resp.json();
+      msg += ` — ${err?.detail?.message ?? JSON.stringify(err)}`;
+    } catch { /* ignore */ }
+    throw new Error(msg);
+  }
+  return resp.json() as Promise<CandidateComparisonResponse>;
+}
+
+
 
 
 

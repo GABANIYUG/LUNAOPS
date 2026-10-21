@@ -8,6 +8,7 @@ import './style.css';
 import { createGeometryPanel, setPanelSite } from './geometryPanel';
 import { SouthPoleOverlay } from './southPoleOverlay';
 import { MissionWorkspace } from './missionWorkspace';
+import { CandidateComparisonWorkspace } from './candidateComparison';
 import { moonMeToScene } from './spiceClient';
 import {
   moonVectorToSelenographic,
@@ -30,6 +31,7 @@ let moonMesh: THREE.Mesh | null = null;
 let moonGroup: THREE.Group;
 let southPoleOverlay: SouthPoleOverlay | null = null;
 let missionWorkspace: MissionWorkspace | null = null;
+let candidateComparisonWorkspace: CandidateComparisonWorkspace | null = null;
 let targetSiteMarker: THREE.Group | null = null;
 let autoRotate = true;
 let isWireframe = false;
@@ -606,6 +608,8 @@ hud.innerHTML = `
     </div>
   </div>
   <div class="controls-panel">
+    <button id="btn-compare-sites" class="btn-highlight-compare" title="Open Candidate-Site Comparison Workspace (Side-by-side analysis &amp; ranking)">⚖️ Compare Sites</button>
+    <button id="btn-export-reports" title="Export Scientific Reports &amp; Reproducibility Artifacts (PDF, CSV, JSON)">📤 Export</button>
     <button id="btn-new-mission" title="Launch Mission Scenario Configuration & Landing Site Selection">🚀 New Mission Analysis</button>
     <button id="btn-south-pole" title="Focus camera directly on Lunar South Pole & Artemis Candidate Sites">🎯 South Pole</button>
     <button id="btn-reset" title="Reset camera to default view">⟲ Reset</button>
@@ -636,6 +640,39 @@ createGeometryPanel({ sunLight, earthshineLight });
 missionWorkspace = new MissionWorkspace();
 document.getElementById('btn-new-mission')!.addEventListener('click', () => {
   missionWorkspace?.toggle();
+});
+document.getElementById('btn-export-reports')?.addEventListener('click', () => {
+  if (missionWorkspace) {
+    missionWorkspace.openExportModal();
+  }
+});
+
+// ── Candidate Comparison Workspace (Phase 5) ───────────────────
+candidateComparisonWorkspace = new CandidateComparisonWorkspace();
+document.getElementById('btn-compare-sites')!.addEventListener('click', () => {
+  candidateComparisonWorkspace?.toggle();
+});
+
+candidateComparisonWorkspace.setOnInspectSiteOnGlobe((site) => {
+  // Update marker and camera to focus on this candidate site
+  updateTargetSiteMarker({
+    name: site.name,
+    designation: 'Candidate Site',
+    latitudeDeg: site.lat,
+    longitudeDeg: site.lon,
+    elevationM: site.elevationM,
+    coordinateConvention: 'Latitude -90° to +90° (South negative); Longitude 0° to 360° East-positive',
+    referenceDatum: 'IAU Moon 2000 Sphere',
+    isInsideSite01DEM: site.lat <= -89.4 && site.lat >= -89.55 && site.lon >= 221.0 && site.lon <= 224.0,
+  });
+
+  // Calculate local position on Moon sphere and target camera smoothly
+  const localPos = selenographicToMoonVector(site.lat, site.lon, MOON_RADIUS);
+  const worldPos = localPos.clone().applyMatrix4(moonGroup.matrixWorld);
+  const normal = worldPos.clone().normalize();
+  const camTarget = worldPos.clone().add(normal.clone().multiplyScalar(0.75));
+
+  animateCameraTo(camTarget, worldPos, 1.2);
 });
 
 // Function to update the 3D target site marker

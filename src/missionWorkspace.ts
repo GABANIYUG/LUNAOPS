@@ -1,3 +1,4 @@
+import { ExportPanel } from './exportPanel';
 /**
  * missionWorkspace.ts — LUNAOPS Mission Scenario Configuration Workspace.
  *
@@ -103,6 +104,7 @@ export class MissionWorkspace {
   private horizonVisibility: HorizonVisibilityResponse | null = null;
   private horizonLoading = false;
   private horizonError: string | null = null;
+  private exportPanel: ExportPanel | null = null;
   private activeTerrainLayer: 'elev' | 'slope' | 'toterr' = 'elev';
 
   // Timeline state (Phase 4)
@@ -394,6 +396,7 @@ export class MissionWorkspace {
         <button class="nav-tab ${this.currentTab === 'readiness' ? 'active' : ''}" data-tab="readiness">🔍 4. Readiness & SPICE</button>
         <button class="nav-tab ${this.currentTab === 'summary' ? 'active' : ''}" data-tab="summary">📋 5. Scenario Summary</button>
         <button class="nav-tab ${this.currentTab === 'horizon' ? 'active' : ''}" data-tab="horizon">🌄 6. Horizon &amp; Visibility</button>
+        <button class="nav-tab ${this.currentTab === 'export' ? 'active' : ''}" data-tab="export">📤 7. Scientific Export</button>
       </div>
 
       <div class="mission-body">
@@ -406,7 +409,8 @@ export class MissionWorkspace {
           <span>Pre-decisional planning scenario. Does not imply formal NASA endorsement or approved CLPS landing site.</span>
         </div>
         <div class="footer-actions">
-          <button id="btn-export-scenario" class="btn-secondary">📥 Export Scenario JSON</button>
+          <button id="btn-export-scenario" class="btn-secondary">📥 Quick JSON</button>
+          <button id="btn-open-export-panel-footer" class="btn-highlight-compare" title="Export Scientific Report (PDF, CSV, JSON)">📤 Export Scientific Report</button>
           <button id="btn-eval-spice-footer" class="btn-primary">⚡ Evaluate Geometry (SPICE)</button>
         </div>
       </div>
@@ -434,6 +438,8 @@ export class MissionWorkspace {
         return this.renderReadinessTab(readiness);
       case 'horizon':
         return this.renderHorizonTab();
+      case 'export':
+        return this.renderExportTab();
       case 'summary':
         return this.renderSummaryTab(readiness);
       default:
@@ -1215,6 +1221,105 @@ export class MissionWorkspace {
 
   // ── Terrain Canvas Drawing ────────────────────────────────────────────────
 
+  // ── Scientific Export (Phase 6) ──────────────────────────────────────────
+
+  public openExportModal(initialFormat?: 'pdf' | 'csv' | 'json') {
+    if (!this.exportPanel) {
+      this.exportPanel = new ExportPanel();
+    }
+    this.computeIsoTimestamps();
+    this.exportPanel.openForMission({
+      scenarioName: this.scenarioName,
+      notes: this.scenarioNotes,
+      siteName: this.selectedSite.name,
+      latitudeDeg: this.selectedSite.latitudeDeg,
+      longitudeDeg: this.selectedSite.longitudeDeg,
+      elevationM: this.selectedSite.elevationM,
+      instrumentHeightM: 2.0,
+      startUtc: this.timeline.isoUtcStart,
+      endUtc: this.timeline.isoUtcEnd,
+      stepMinutes: Math.max(1, Math.round((this.timeline.timeStepHours || 1) * 60)),
+      timelineResponse: this.timelineResponse || undefined,
+      horizonProfile: this.horizonProfile || undefined,
+    }, initialFormat);
+  }
+
+  private renderExportTab(): string {
+    const hasTimeline = this.timelineResponse !== null;
+
+    return `
+    <div class="tab-pane">
+      <div class="panel-card">
+        <div class="card-header">
+          <h3>📤 Scientific Report Export &amp; Reproducibility</h3>
+          <span class="coverage-pill ${hasTimeline ? 'coverage-inside' : 'coverage-pending'}">
+            ${hasTimeline ? 'TIMELINE COMPUTED' : 'TIMELINE PENDING'}
+          </span>
+        </div>
+
+        <p class="section-intro">
+          Generate formal scientific artifacts for peer review, mission reproducibility, and team collaboration.
+          Select from publication-ready PDF reports, columnar CSV numerical time-series, or JSON reproducibility manifests.
+        </p>
+
+        <div class="export-tab-summary-grid">
+          <div class="export-metric-box">
+            <span class="export-metric-label">Scenario Name</span>
+            <span class="export-metric-val">${this.scenarioName}</span>
+          </div>
+          <div class="export-metric-box">
+            <span class="export-metric-label">Selected Site</span>
+            <span class="export-metric-val">${this.selectedSite.name}</span>
+          </div>
+          <div class="export-metric-box">
+            <span class="export-metric-label">Coordinates</span>
+            <span class="export-metric-val">${this.selectedSite.latitudeDeg.toFixed(3)}°N, ${this.selectedSite.longitudeDeg.toFixed(3)}°E</span>
+          </div>
+          <div class="export-metric-box">
+            <span class="export-metric-label">UTC Interval</span>
+            <span class="export-metric-val">${this.timeline.startDate} → ${this.timeline.isoUtcEnd ? this.timeline.isoUtcEnd.slice(0, 10) : ''}</span>
+          </div>
+        </div>
+
+        <div class="export-artifacts-preview">
+          <div class="export-art-item">
+            <div class="art-badge-icon">📄</div>
+            <div class="art-details">
+              <strong>Publication PDF Report</strong>
+              <p>Executive overview, SPICE reference frame geometry (MOON_ME), solar elevation charts, terrain obstruction, and ephemeris provenance.</p>
+            </div>
+            <button class="btn-primary btn-quick-export" data-quick-fmt="pdf">📥 PDF</button>
+          </div>
+
+          <div class="export-art-item">
+            <div class="art-badge-icon">📊</div>
+            <div class="art-details">
+              <strong>Numerical Time-Series (CSV)</strong>
+              <p>Columnar UTC timeline with explicit units (deg, km, visibility flag) for external plotting and numerical analysis.</p>
+            </div>
+            <button class="btn-primary btn-quick-export" data-quick-fmt="csv">📥 CSV</button>
+          </div>
+
+          <div class="export-art-item">
+            <div class="art-badge-icon">💾</div>
+            <div class="art-details">
+              <strong>Reproducibility Manifest (JSON)</strong>
+              <p>Full machine-readable scenario inputs, SPICE kernel IDs, calculation parameters, results, and validation coverage status.</p>
+            </div>
+            <button class="btn-primary btn-quick-export" data-quick-fmt="json">📥 JSON</button>
+          </div>
+        </div>
+
+        <div class="summary-actions-bar" style="margin-top: 1.5rem;">
+          <button id="btn-open-full-export-dialog" class="btn-primary btn-highlight-compare" style="width: 100%; justify-content: center; padding: 0.85rem 1.25rem;">
+            📤 Open Complete Scientific Export &amp; Provenance Dialog
+          </button>
+        </div>
+      </div>
+    </div>
+    `;
+  }
+
   private drawTerrainCanvas() {
     setTimeout(() => {
       const canvas = document.getElementById('site01-terrain-canvas') as HTMLCanvasElement;
@@ -1553,6 +1658,14 @@ export class MissionWorkspace {
     };
 
     this.container.querySelector('#btn-export-scenario')?.addEventListener('click', exportJSON);
+    this.container.querySelector('#btn-open-export-panel-footer')?.addEventListener('click', () => this.openExportModal());
+    this.container.querySelector('#btn-open-full-export-dialog')?.addEventListener('click', () => this.openExportModal());
+    this.container.querySelectorAll('.btn-quick-export').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const fmt = (btn.getAttribute('data-quick-fmt') as any) || 'pdf';
+        this.openExportModal(fmt);
+      });
+    });
     this.container.querySelector('#btn-export-scenario-summary')?.addEventListener('click', exportJSON);
 
     // Apply & Focus Site

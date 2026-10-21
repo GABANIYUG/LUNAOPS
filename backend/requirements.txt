@@ -5,3 +5,5 @@ uvicorn[standard]>=0.23.0
 pydantic>=2.0.0
 httpx>=0.25.0       # needed by FastAPI TestClient
 pytest>=7.4.0
+reportlab>=4.0.0
+matplotlib>=3.8.0
