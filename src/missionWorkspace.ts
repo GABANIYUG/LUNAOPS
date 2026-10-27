@@ -17,6 +17,7 @@ import {
   fetchHorizonProfile,
   fetchHorizonVisibility,
   fetchMissionTimeline,
+  fetchLandingWindows,
   type GeometryResponse,
   type SpiceHealth,
   type HorizonProfileResponse,
@@ -24,6 +25,8 @@ import {
   type TargetObstruction,
   type MissionTimelineResponse,
   type TimelineSample,
+  type LandingWindowsResponse,
+  type LandingWindowsDayRecord,
 } from './spiceClient';
 import {
   selenographicToPolarStereo,
@@ -113,6 +116,14 @@ export class MissionWorkspace {
   private timelineError: string | null = null;
   private scrubbedSampleIndex = 0;
   private onTimelineScrubbedCallback?: (sample: TimelineSample) => void;
+
+  // Landing Windows Scanner state (Multi-Month Planning)
+  private landingWindowsResponse: LandingWindowsResponse | null = null;
+  private landingWindowsLoading = false;
+  private landingWindowsError: string | null = null;
+  private landingWindowsStartDate = '2026-10-01';
+  private landingWindowsEndDate = '2026-12-31';
+  private landingWindowsFilter: 'all' | 'safe' | 'excellent' = 'all';
 
   // Canvas interaction
   private terrainCtx: CanvasRenderingContext2D | null = null;
@@ -397,6 +408,7 @@ export class MissionWorkspace {
         <button class="nav-tab ${this.currentTab === 'summary' ? 'active' : ''}" data-tab="summary">📋 5. Scenario Summary</button>
         <button class="nav-tab ${this.currentTab === 'horizon' ? 'active' : ''}" data-tab="horizon">🌄 6. Horizon &amp; Visibility</button>
         <button class="nav-tab ${this.currentTab === 'export' ? 'active' : ''}" data-tab="export">📤 7. Scientific Export</button>
+        <button class="nav-tab ${this.currentTab === 'windows' ? 'active' : ''}" data-tab="windows">🗓️ 8. Landing Windows</button>
       </div>
 
       <div class="mission-body">
@@ -442,6 +454,9 @@ export class MissionWorkspace {
         return this.renderExportTab();
       case 'summary':
         return this.renderSummaryTab(readiness);
+      case 'windows':
+      case 'landing-windows':
+        return this.renderLandingWindowsTab();
       default:
         return this.renderSiteTab();
     }
@@ -1320,6 +1335,250 @@ export class MissionWorkspace {
     `;
   }
 
+  private renderLandingWindowsTab(): string {
+    const resp = this.landingWindowsResponse;
+    const days: LandingWindowsDayRecord[] = resp?.days ?? [];
+    const scanParams = resp?.scan_params;
+    const summary = resp?.summary;
+
+    const formatDateLabel = (dStr: string) => {
+      try {
+        const dt = new Date(dStr + 'T12:00:00Z');
+        return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+      } catch {
+        return dStr;
+      }
+    };
+
+    const safetyRatingBadge = (rating: string, score: number) => {
+      switch (rating) {
+        case 'excellent':
+          return `<span class="rating-badge rating-excellent">🌟 EXCELLENT (${score})</span>`;
+        case 'good':
+          return `<span class="rating-badge rating-good">🟢 GOOD (${score})</span>`;
+        case 'marginal':
+          return `<span class="rating-badge rating-marginal">🟡 MARGINAL (${score})</span>`;
+        case 'poor':
+        default:
+          return `<span class="rating-badge rating-poor">🔴 POOR (${score})</span>`;
+      }
+    };
+
+    const ratingColor = (rating: string) => {
+      switch (rating) {
+        case 'excellent': return '#22c55e';
+        case 'good': return '#38bdf8';
+        case 'marginal': return '#f59e0b';
+        case 'poor': return '#475569';
+        default: return '#334155';
+      }
+    };
+
+    const filteredDays = days.filter((d) => {
+      if (this.landingWindowsFilter === 'safe') return d.is_safe_for_landing;
+      if (this.landingWindowsFilter === 'excellent') return d.safety_rating === 'excellent';
+      return true;
+    });
+
+    return `
+    <div class="tab-pane">
+      <div class="horizon-eval-header" style="margin-bottom: 1.25rem;">
+        <div>
+          <h3 style="margin:0 0 4px; color: var(--text-primary)">🗓️ Multi-Month Landing Windows Scanner</h3>
+          <p style="margin:0; color: var(--text-muted); font-size:0.82rem">
+            Scan candidate months at 6-hour granularity using SPICE ephemerides to identify launch/landing opportunities with adequate solar illumination (power &amp; thermal) and direct-to-Earth line-of-sight (communications).
+          </p>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <button id="btn-scan-landing-windows" class="btn-primary${this.landingWindowsLoading ? ' loading' : ''}">
+            ${this.landingWindowsLoading ? '⏳ Scanning Ephemerides...' : '🔍 Scan Landing Windows'}
+          </button>
+        </div>
+      </div>
+
+      <!-- Config & Presets Card -->
+      <div class="panel-card" style="margin-bottom: 1.25rem;">
+        <div class="card-header" style="margin-bottom: 0.75rem;">
+          <h4 style="margin:0; font-size: 0.9rem; color: var(--text-primary);">Scanner Configuration</h4>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">
+            Target: <strong>${this.selectedSite.name}</strong> (${this.selectedSite.latitudeDeg.toFixed(3)}° S, ${this.selectedSite.longitudeDeg.toFixed(2)}° E · ${this.selectedSite.isInsideSite01DEM ? 'LOLA 5m DEM Terrain-Aware' : 'Geometric SPICE'})
+          </span>
+        </div>
+        <div class="windows-config-grid">
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="inp-windows-start-date" style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">Start Date (UTC)</label>
+            <input id="inp-windows-start-date" type="date" value="${this.landingWindowsStartDate}" class="windows-date-input" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="inp-windows-end-date" style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">End Date (UTC)</label>
+            <input id="inp-windows-end-date" type="date" value="${this.landingWindowsEndDate}" class="windows-date-input" />
+          </div>
+          <div class="form-group" style="margin-bottom:0; display:flex; flex-direction:column; justify-content:flex-end;">
+            <span style="font-size:0.72rem; color:var(--text-muted); margin-bottom:4px;">Quick Date Presets</span>
+            <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+              <button class="btn-preset-pill btn-window-preset" data-preset="30d">Next 30 Days</button>
+              <button class="btn-preset-pill btn-window-preset" data-preset="q4-2026">Q4 2026 (Artemis III)</button>
+              <button class="btn-preset-pill btn-window-preset" data-preset="q1-2027">Q1 2027</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      ${this.landingWindowsError ? `
+      <div class="check-item check-fail" style="margin-bottom: 16px;">
+        <div class="check-icon">✕</div>
+        <div class="check-body">
+          <div class="check-label">Landing Windows Scan Error</div>
+          <div class="check-detail">${this.landingWindowsError}</div>
+        </div>
+      </div>
+      ` : ''}
+
+      ${this.landingWindowsLoading ? `
+      <div class="windows-loading-state">
+        <div class="spinner-circle"></div>
+        <h4>Scanning SPICE Ephemerides &amp; Horizon Obscuration</h4>
+        <p>Evaluating solar elevation, line-of-sight communications, and terrain obstruction across ${this.landingWindowsStartDate} → ${this.landingWindowsEndDate}...</p>
+      </div>
+      ` : ''}
+
+      ${!resp && !this.landingWindowsLoading && !this.landingWindowsError ? `
+      <div class="empty-geom-state" style="padding: 2.5rem 1.5rem;">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🗓️</div>
+        <p style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.35rem;">No Landing Windows Scan Computed Yet</p>
+        <p class="hint" style="max-width: 560px; margin: 0 auto 1.25rem;">
+          Click <strong>Scan Landing Windows</strong> above to analyze solar power availability, illumination, and direct-to-Earth communications across the selected date range.
+        </p>
+        <button id="btn-run-initial-scan" class="btn-primary">⚡ Run Scan for Selected Range</button>
+      </div>
+      ` : ''}
+
+      ${resp && !this.landingWindowsLoading ? `
+      <!-- Summary KPI Grid -->
+      <div class="windows-kpi-grid">
+        <div class="windows-kpi-card">
+          <span class="windows-kpi-title">TOTAL DAYS SCANNED</span>
+          <span class="windows-kpi-val">${scanParams?.total_days ?? 0} days</span>
+          <span class="windows-kpi-sub">${scanParams?.step_hours ?? 6}h step · ${(scanParams?.total_days ?? 0) * (scanParams?.samples_per_day ?? 4)} samples</span>
+        </div>
+        <div class="windows-kpi-card">
+          <span class="windows-kpi-title">SAFE LANDING DAYS</span>
+          <span class="windows-kpi-val val-good">${summary?.safe_days_count ?? 0} days</span>
+          <span class="windows-kpi-sub">${Math.round(((summary?.safe_days_count ?? 0) / (scanParams?.total_days || 1)) * 100)}% of window (≥6h Sun &amp; Comms)</span>
+        </div>
+        <div class="windows-kpi-card">
+          <span class="windows-kpi-title">PRIME CONDITIONS</span>
+          <span class="windows-kpi-val val-prime">${summary?.excellent_days_count ?? 0} days</span>
+          <span class="windows-kpi-sub">Composite safety rating ≥ 75</span>
+        </div>
+        <div class="windows-kpi-card windows-kpi-streak">
+          <span class="windows-kpi-title">LONGEST SAFE STREAK</span>
+          <span class="windows-kpi-val">${summary?.best_window_start ? summary.best_window_start : 'None detected'}</span>
+          ${summary?.best_window_start ? `
+          <button class="btn-preset-accent btn-sm" id="btn-apply-best-window" data-date="${summary.best_window_start}" style="margin-top:4px;">
+            🚀 Set as Mission Start
+          </button>
+          ` : '<span class="windows-kpi-sub">No continuous streak</span>'}
+        </div>
+      </div>
+
+      <!-- Multi-day Ribbon Heatmap -->
+      <div class="panel-card" style="margin-bottom: 1.25rem;">
+        <div class="card-header" style="margin-bottom: 0.5rem;">
+          <h4 style="margin:0; font-size: 0.85rem; color: var(--text-primary);">Window Timeline Heatmap Overview</h4>
+          <div class="windows-legend">
+            <span><span class="legend-dot" style="background:#22c55e"></span> Excellent</span>
+            <span><span class="legend-dot" style="background:#38bdf8"></span> Good</span>
+            <span><span class="legend-dot" style="background:#f59e0b"></span> Marginal</span>
+            <span><span class="legend-dot" style="background:#475569"></span> Poor</span>
+          </div>
+        </div>
+        <div class="windows-heatmap-ribbon">
+          ${days.map((d) => `
+            <div class="heatmap-ribbon-seg"
+                 style="background: ${ratingColor(d.safety_rating)}; flex: 1;"
+                 title="${d.date}: ${d.safety_rating.toUpperCase()} (Score: ${d.safety_score}) · Sun: ${d.sunlight.full_hours}h · Earth: ${d.earth_los.full_hours}h">
+            </div>
+          `).join('')}
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-muted); margin-top:4px; font-family:var(--font-mono);">
+          <span>${scanParams?.start_date}</span>
+          <span>${days.length} days scanned</span>
+          <span>${scanParams?.end_date}</span>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="windows-filter-bar">
+        <span style="font-size:0.78rem; color:var(--text-muted); font-weight:600;">FILTER DAYS:</span>
+        <div class="filter-pills-group">
+          <button class="btn-filter-pill ${this.landingWindowsFilter === 'all' ? 'active' : ''} btn-window-filter" data-filter="all">
+            All Days (${days.length})
+          </button>
+          <button class="btn-filter-pill ${this.landingWindowsFilter === 'safe' ? 'active' : ''} btn-window-filter" data-filter="safe">
+            ✓ Safe Only (${summary?.safe_days_count ?? 0})
+          </button>
+          <button class="btn-filter-pill ${this.landingWindowsFilter === 'excellent' ? 'active' : ''} btn-window-filter" data-filter="excellent">
+            🌟 Excellent Only (${summary?.excellent_days_count ?? 0})
+          </button>
+        </div>
+      </div>
+
+      <!-- Days Grid -->
+      <div class="windows-cards-grid">
+        ${filteredDays.map((d) => `
+          <div class="window-day-card ${d.safety_rating}">
+            <div class="window-day-header">
+              <div>
+                <span class="window-day-date">${formatDateLabel(d.date)}</span>
+                <span class="window-day-iso">${d.date}</span>
+              </div>
+              <div>
+                ${safetyRatingBadge(d.safety_rating, d.safety_score)}
+              </div>
+            </div>
+
+            <div class="window-safe-row">
+              ${d.is_safe_for_landing
+                ? '<span class="safe-pill pass">✓ Safe for Landing</span>'
+                : '<span class="safe-pill fail">⚠️ Marginal Comms/Sun</span>'}
+              <span class="window-score-num">Safety: <strong>${d.safety_score}</strong>/100</span>
+            </div>
+
+            <div class="score-bar-track">
+              <div class="score-bar-fill ${d.safety_rating}" style="width: ${Math.min(100, Math.max(0, d.safety_score))}%;"></div>
+            </div>
+
+            <div class="window-day-metrics-grid">
+              <div class="window-metric-col">
+                <span class="window-metric-header">☀️ SUNLIGHT</span>
+                <div class="window-metric-row"><span>Full Sun:</span> <strong>${d.sunlight.full_hours.toFixed(1)} h</strong></div>
+                <div class="window-metric-row"><span>Penumbral:</span> <strong>${d.sunlight.partial_hours.toFixed(1)} h</strong></div>
+                <div class="window-metric-row"><span>Darkness:</span> <strong>${d.sunlight.darkness_hours.toFixed(1)} h</strong></div>
+                <div class="window-metric-row"><span>Mean El:</span> <strong>${d.sunlight.avg_elevation_deg >= 0 ? '+' : ''}${d.sunlight.avg_elevation_deg.toFixed(1)}°</strong></div>
+              </div>
+              <div class="window-metric-col">
+                <span class="window-metric-header">🌍 EARTH LOS</span>
+                <div class="window-metric-row"><span>Full LOS:</span> <strong>${d.earth_los.full_hours.toFixed(1)} h</strong></div>
+                <div class="window-metric-row"><span>Partial:</span> <strong>${d.earth_los.partial_hours.toFixed(1)} h</strong></div>
+                <div class="window-metric-row"><span>Occulted:</span> <strong>${d.earth_los.occulted_hours.toFixed(1)} h</strong></div>
+                <div class="window-metric-row"><span>Mean El:</span> <strong>${d.earth_los.avg_elevation_deg >= 0 ? '+' : ''}${d.earth_los.avg_elevation_deg.toFixed(1)}°</strong></div>
+              </div>
+            </div>
+
+            <div class="window-card-action">
+              <button class="btn-secondary btn-apply-window-date" data-date="${d.date}">
+                ⏱ Set as Mission Start Date
+              </button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      ` : ''}
+    </div>
+    `;
+  }
+
   private drawTerrainCanvas() {
     setTimeout(() => {
       const canvas = document.getElementById('site01-terrain-canvas') as HTMLCanvasElement;
@@ -1667,6 +1926,94 @@ export class MissionWorkspace {
       });
     });
     this.container.querySelector('#btn-export-scenario-summary')?.addEventListener('click', exportJSON);
+
+    // Landing Windows Scanner Events
+    const winStartInp = this.container.querySelector('#inp-windows-start-date') as HTMLInputElement | null;
+    const winEndInp = this.container.querySelector('#inp-windows-end-date') as HTMLInputElement | null;
+
+    winStartInp?.addEventListener('change', () => {
+      if (winStartInp.value) this.landingWindowsStartDate = winStartInp.value;
+    });
+    winEndInp?.addEventListener('change', () => {
+      if (winEndInp.value) this.landingWindowsEndDate = winEndInp.value;
+    });
+
+    this.container.querySelectorAll('.btn-window-preset').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const target = e.currentTarget as HTMLElement;
+        const preset = target.dataset.preset;
+        if (preset === '30d') {
+          const s = new Date(this.timeline.startDate + 'T00:00:00Z');
+          const eDate = new Date(s.getTime() + 30 * 24 * 3600 * 1000);
+          this.landingWindowsStartDate = s.toISOString().slice(0, 10);
+          this.landingWindowsEndDate = eDate.toISOString().slice(0, 10);
+        } else if (preset === 'q4-2026') {
+          this.landingWindowsStartDate = '2026-10-01';
+          this.landingWindowsEndDate = '2026-12-31';
+        } else if (preset === 'q1-2027') {
+          this.landingWindowsStartDate = '2027-01-01';
+          this.landingWindowsEndDate = '2027-03-31';
+        }
+        this.render();
+      });
+    });
+
+    this.container.querySelectorAll('.btn-window-filter').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const target = e.currentTarget as HTMLElement;
+        const filter = target.dataset.filter as any;
+        if (filter) {
+          this.landingWindowsFilter = filter;
+          this.render();
+        }
+      });
+    });
+
+    const triggerWindowsScan = async () => {
+      this.landingWindowsLoading = true;
+      this.landingWindowsError = null;
+      this.render();
+      try {
+        const resp = await fetchLandingWindows({
+          start_date: this.landingWindowsStartDate,
+          end_date: this.landingWindowsEndDate,
+          latitude_deg: this.selectedSite.latitudeDeg,
+          longitude_deg: this.selectedSite.longitudeDeg,
+          elevation_m: this.selectedSite.elevationM,
+        });
+        this.landingWindowsResponse = resp;
+        this.landingWindowsLoading = false;
+        this.render();
+      } catch (err: any) {
+        this.landingWindowsLoading = false;
+        this.landingWindowsError = err.message ?? String(err);
+        this.render();
+      }
+    };
+
+    this.container.querySelector('#btn-scan-landing-windows')?.addEventListener('click', triggerWindowsScan);
+    this.container.querySelector('#btn-run-initial-scan')?.addEventListener('click', triggerWindowsScan);
+
+    const applyDateToTimeline = (dateStr: string) => {
+      this.timeline.startDate = dateStr;
+      this.computeIsoTimestamps();
+      this.currentTab = 'timeline';
+      this.render();
+    };
+
+    this.container.querySelector('#btn-apply-best-window')?.addEventListener('click', (e) => {
+      const target = e.currentTarget as HTMLElement;
+      const date = target.dataset.date;
+      if (date) applyDateToTimeline(date);
+    });
+
+    this.container.querySelectorAll('.btn-apply-window-date').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const target = e.currentTarget as HTMLElement;
+        const date = target.dataset.date;
+        if (date) applyDateToTimeline(date);
+      });
+    });
 
     // Apply & Focus Site
     this.container.querySelector('#btn-apply-3d-view')?.addEventListener('click', () => {

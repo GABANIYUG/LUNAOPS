@@ -472,6 +472,76 @@ export async function fetchCandidateComparison(
 
 
 
+// ---------------------------------------------------------------------------
+// Landing Windows Date Scanner API types and calls (Phase 7)
+// ---------------------------------------------------------------------------
+
+export interface LandingWindowsRequest {
+  start_date: string;   // YYYY-MM-DD
+  end_date: string;     // YYYY-MM-DD
+  latitude_deg: number;
+  longitude_deg: number;
+  elevation_m?: number;
+}
+
+export interface LandingWindowsDayRecord {
+  date: string;
+  sunlight: {
+    full_hours: number;
+    partial_hours: number;
+    darkness_hours: number;
+    avg_elevation_deg: number;
+  };
+  earth_los: {
+    full_hours: number;
+    partial_hours: number;
+    occulted_hours: number;
+    avg_elevation_deg: number;
+  };
+  safety_score: number;
+  safety_rating: 'excellent' | 'good' | 'marginal' | 'poor';
+  is_safe_for_landing: boolean;
+}
+
+export interface LandingWindowsResponse {
+  site: {
+    latitude_deg: number;
+    longitude_deg: number;
+    elevation_m: number;
+    is_inside_dem: boolean;
+  };
+  scan_params: {
+    start_date: string;
+    end_date: string;
+    total_days: number;
+    step_hours: number;
+    samples_per_day: number;
+  };
+  days: LandingWindowsDayRecord[];
+  summary: {
+    safe_days_count: number;
+    excellent_days_count: number;
+    best_window_start: string | null;
+  };
+}
+
+export async function fetchLandingWindows(req: LandingWindowsRequest): Promise<LandingWindowsResponse> {
+  const resp = await fetch(`${SPICE_API_BASE}/api/mission/landing-windows`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!resp.ok) {
+    let msg = `Landing windows scan failed: HTTP ${resp.status}`;
+    try {
+      const err = await resp.json();
+      msg += ` — ${err?.detail?.message ?? JSON.stringify(err)}`;
+    } catch { /* ignore */ }
+    throw new Error(msg);
+  }
+  return resp.json() as Promise<LandingWindowsResponse>;
+}
+
 
 // ---------------------------------------------------------------------------
 // MOON_ME → Three.js scene coordinate transform

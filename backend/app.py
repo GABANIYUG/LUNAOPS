@@ -33,6 +33,7 @@ import horizon_service
 import timeline_service
 import comparison_service
 import export_service
+import landing_windows_service
 from schemas import (
     GeometryRequest,
     HorizonProfileRequest,
@@ -41,6 +42,7 @@ from schemas import (
     CandidateComparisonRequest,
     MissionExportRequest,
     ComparisonExportRequest,
+    LandingWindowsRequest,
 )
 
 # ---------------------------------------------------------------------------
@@ -618,5 +620,56 @@ async def export_comparison_analysis(
         )
         return manifest
 
+# ---------------------------------------------------------------------------
+# Landing Windows Date Scanner (Phase 7)
+# ---------------------------------------------------------------------------
+
+@app.post(
+    "/api/mission/landing-windows",
+    summary="Scan a date range for safe lunar landing windows",
+    response_model=dict,
+    tags=["Mission Timeline"],
+)
+async def landing_windows(request: LandingWindowsRequest) -> dict:
+    """
+    Scan a user-specified date range (up to 180 days) at 6-hour granularity
+    to identify days with sufficient sunlight AND Earth line-of-sight for
+    safe lunar landing operations.
+
+    Each day receives:
+    - Sunlight hours (full, partial, darkness)
+    - Earth LOS hours (full disc, partial disc, occulted)
+    - Composite safety score (0–100) and rating
+    - Boolean is_safe_for_landing flag
+
+    The response also includes a summary with total safe days and best
+    consecutive safe-landing window.
+    """
+    if not spice_service._initialized:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"error": "SPICE not initialised", "message": "Call /api/spice/health for details."},
+        )
+
+    try:
+        result = landing_windows_service.scan_landing_windows(
+            start_date=request.start_date,
+            end_date=request.end_date,
+            latitude_deg=request.latitude_deg,
+            longitude_deg=request.longitude_deg,
+            elevation_m=request.elevation_m,
+        )
+        return result
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"error": "Invalid landing window parameters", "message": str(exc)},
+        ) from exc
+    except Exception as exc:
+        logger.exception("Landing windows scan failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": "Landing windows scan failed", "message": str(exc)},
+        ) from exc
 
 

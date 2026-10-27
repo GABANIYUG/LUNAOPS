@@ -454,4 +454,56 @@ class ComparisonExportRequest(BaseModel):
     )
 
 
+class LandingWindowsRequest(BaseModel):
+    """Input for POST /api/mission/landing-windows — scan a date range for safe landing days."""
+
+    start_date: str = Field(
+        ...,
+        description="Start date in YYYY-MM-DD format.",
+        examples=["2026-10-01"],
+    )
+    end_date: str = Field(
+        ...,
+        description="End date in YYYY-MM-DD format (inclusive).",
+        examples=["2026-10-31"],
+    )
+    latitude_deg: float = Field(
+        ...,
+        ge=-90.0,
+        le=90.0,
+        description="Site latitude in degrees (South negative).",
+        examples=[-89.463],
+    )
+    longitude_deg: float = Field(
+        ...,
+        ge=-180.0,
+        le=360.0,
+        description="Site longitude in degrees (East-positive).",
+        examples=[222.51],
+    )
+    elevation_m: float = Field(
+        0.0,
+        description="Site elevation above reference sphere in metres.",
+        examples=[1100.0],
+    )
+
+    @field_validator("start_date", "end_date")
+    @classmethod
+    def validate_date_format(cls, v: str) -> str:
+        """Validate YYYY-MM-DD format."""
+        v = v.strip()
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$", v):
+            raise ValueError("Date must be in YYYY-MM-DD format.")
+        return v
+
+    model_config = {"json_schema_extra": {
+        "example": {
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-31",
+            "latitude_deg": -89.463,
+            "longitude_deg": 222.51,
+            "elevation_m": 1100.0,
+        }
+    }}
+
 

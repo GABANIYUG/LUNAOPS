@@ -2,7 +2,7 @@ KPL/MK
 
 \begindata
 
-PATH_VALUES  = ( 'Y:/LUNAOPS/backend/kernels' )
+PATH_VALUES  = ( 'D:/New folder/nasa3/LUNAOPS/backend/kernels' )
 PATH_SYMBOLS = ( 'KERNELS' )
 
 KERNELS_TO_LOAD = (
@@ -16,4 +16,4 @@ KERNELS_TO_LOAD = (
 \begintext
 
 LUNAOPS generated meta-kernel - do not edit manually.
-Generated from kernel directory: Y:/LUNAOPS/backend/kernels
+Generated from kernel directory: D:/New folder/nasa3/LUNAOPS/backend/kernels

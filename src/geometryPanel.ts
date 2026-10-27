@@ -19,6 +19,7 @@ import * as THREE from 'three';
 import {
   fetchSpiceHealth,
   fetchGeometry,
+  fetchLandingWindows,
   moonMeToScene,
   type GeometryResponse,
   type SpiceHealth,
@@ -52,15 +53,101 @@ const DEFAULT_SITE = {
 
 let _panelElement: HTMLElement | null = null;
 
-export function setPanelSite(lat: number, lon: number, label: string) {
+export async function setPanelSite(lat: number, lon: number, label: string, utcTime?: string) {
   if (!_panelElement) return;
   const latInput = _panelElement.querySelector<HTMLInputElement>('#spice-lat');
   const lonInput = _panelElement.querySelector<HTMLInputElement>('#spice-lon');
+  const timeInput = _panelElement.querySelector<HTMLInputElement>('#spice-time-input');
   const note = _panelElement.querySelector<HTMLDivElement>('#spice-site-note');
+  const predBadge = _panelElement.querySelector<HTMLDivElement>('#spice-predicted-badge');
+
   if (latInput) latInput.value = lat.toFixed(3);
   if (lonInput) lonInput.value = lon.toFixed(2);
   if (note) note.textContent = label;
+
+  // Sync active visual state on South Pole candidate site buttons
+  _panelElement.querySelectorAll<HTMLButtonElement>('.spice-preset-btn').forEach((btn) => {
+    const bLat = parseFloat(btn.dataset.lat || '999');
+    const bLon = parseFloat(btn.dataset.lon || '999');
+    if (Math.abs(bLat - lat) < 0.05 && Math.abs(bLon - lon) < 0.05) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  if (utcTime) {
+    if (timeInput) timeInput.value = utcTime;
+    if (predBadge) {
+      predBadge.textContent = `🎯 Target Date: ${utcTime}`;
+      predBadge.style.display = 'block';
+    }
+    triggerFetch(_panelElement);
+    return;
+  }
+
+  // Scan landing windows to predict the next optimal safe landing date for this site
+  if (predBadge) {
+    predBadge.textContent = '⏳ Predicting optimal landing window...';
+    predBadge.style.display = 'block';
+  }
+
+  try {
+    const today = new Date();
+    const startDate = today.toISOString().slice(0, 10);
+    const endDate = new Date(today.getTime() + 60 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+
+    const scan = await fetchLandingWindows({
+      start_date: startDate,
+      end_date: endDate,
+      latitude_deg: lat,
+      longitude_deg: lon,
+    });
+
+    let bestDateStr = scan.summary.best_window_start;
+    let score = 0;
+    if (!bestDateStr && scan.days.length > 0) {
+      const safeDays = scan.days.filter((d) => d.is_safe_for_landing);
+      if (safeDays.length > 0) {
+        bestDateStr = safeDays[0].date;
+        score = safeDays[0].safety_score;
+      } else {
+        const sorted = [...scan.days].sort((a, b) => b.safety_score - a.safety_score);
+        bestDateStr = sorted[0].date;
+        score = sorted[0].safety_score;
+      }
+    } else if (bestDateStr) {
+      const match = scan.days.find((d) => d.date === bestDateStr);
+      score = match?.safety_score ?? 100;
+    }
+
+    if (bestDateStr) {
+      const bestIso = `${bestDateStr}T12:00:00Z`;
+      if (timeInput) timeInput.value = bestIso;
+      if (predBadge) {
+        predBadge.innerHTML = `🎯 Predicted Safe Window: <strong>${bestDateStr}</strong> (${score}/100)`;
+        predBadge.style.display = 'block';
+      }
+    } else {
+      if (timeInput) timeInput.value = new Date().toISOString().slice(0, 19) + 'Z';
+      if (predBadge) predBadge.style.display = 'none';
+    }
+  } catch (err) {
+    console.warn('[SPICE] Landing window prediction scan failed, falling back to current time', err);
+    if (timeInput) timeInput.value = new Date().toISOString().slice(0, 19) + 'Z';
+    if (predBadge) predBadge.style.display = 'none';
+  }
+
   triggerFetch(_panelElement);
+}
+
+export function setPanelTime(utcTime: string) {
+  if (!_panelElement) return;
+  const timeInput = _panelElement.querySelector<HTMLInputElement>('#spice-time-input');
+  if (timeInput) {
+    timeInput.value = utcTime;
+    triggerFetch(_panelElement);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -82,6 +169,15 @@ export function createGeometryPanel(lights: PanelLights): HTMLElement {
 
   panel.querySelector<HTMLButtonElement>('#spice-auto-btn')!
     .addEventListener('click', () => toggleAutoUpdate(panel));
+
+  panel.querySelector<HTMLButtonElement>('#spice-now-btn')
+    ?.addEventListener('click', () => {
+      const timeInput = panel.querySelector<HTMLInputElement>('#spice-time-input');
+      if (timeInput) {
+        timeInput.value = new Date().toISOString().slice(0, 19) + 'Z';
+        triggerFetch(panel);
+      }
+    });
 
   // South Pole site presets
   panel.querySelectorAll<HTMLButtonElement>('.spice-preset-btn').forEach((btn) => {
@@ -109,7 +205,10 @@ export function createGeometryPanel(lights: PanelLights): HTMLElement {
   timeInput.value = new Date().toISOString().slice(0, 19) + 'Z';
 
   // Check backend health on load (non-blocking)
-  checkHealth(panel);
+  checkHealth(panel).then(() => {
+    // Automatically predict safe landing date for default site
+    setPanelSite(DEFAULT_SITE.lat, DEFAULT_SITE.lon, DEFAULT_SITE.label);
+  });
 
   return panel;
 }
@@ -132,10 +231,14 @@ function buildPanelHTML(): string {
   </div>
 
   <div class="spice-section">
-    <div class="spice-label">PREDICT DATE / UTC TIME</div>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="spice-label">PREDICT DATE / UTC TIME</div>
+      <button type="button" id="spice-now-btn" class="spice-now-btn" title="Refresh to current UTC time">Now ⟳</button>
+    </div>
     <input type="text" id="spice-time-input" class="spice-input"
            placeholder="2026-10-16T12:00:00Z"
            title="ISO-8601 UTC timestamp with Z suffix" />
+    <div id="spice-predicted-badge" class="spice-predicted-badge" style="display:none"></div>
   </div>
 
   <div class="spice-section spice-site-section">

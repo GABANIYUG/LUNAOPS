@@ -5,7 +5,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import './style.css';
-import { createGeometryPanel, setPanelSite } from './geometryPanel';
+import { createGeometryPanel, setPanelSite, setPanelTime } from './geometryPanel';
 import { SouthPoleOverlay } from './southPoleOverlay';
 import { MissionWorkspace } from './missionWorkspace';
 import { CandidateComparisonWorkspace } from './candidateComparison';
@@ -751,6 +751,7 @@ missionWorkspace.setOnTimelineScrubbed((sample) => {
   if (clockEl) {
     clockEl.textContent = sample.timestamp_utc;
   }
+  setPanelTime(sample.timestamp_utc);
 });
 
 // Initialize target marker for default site
