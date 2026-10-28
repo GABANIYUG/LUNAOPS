@@ -1,0 +1,104 @@
+    vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,fragmentShader:`
+    uniform sampler2D tDiffuse;
+    uniform float offset;
+    uniform float darkness;
+    varying vec2 vUv;
+    void main() {
+      vec4 color = texture2D(tDiffuse, vUv);
+      vec2 center = vUv - 0.5;
+      float dist = length(center);
+      float vig = smoothstep(offset, offset - 0.5, dist * (darkness + offset));
+      color.rgb *= vig;
+      gl_FragColor = color;
+    }
+  `},ex=new Kd(Q0);Ys.addPass(ex);function tx(){[{count:1500,rMin:60,rMax:90,size:.04,opacity:.5},{count:2e3,rMin:100,rMax:150,size:.06,opacity:.7},{count:500,rMin:40,rMax:60,size:.12,opacity:.9}].forEach(({count:e,rMin:t,rMax:n,size:i,opacity:r})=>{const a=new Float32Array(e*3);for(let c=0;c<e;c++){const d=Math.random()*Math.PI*2,u=Math.acos(2*Math.random()-1),h=t+Math.random()*(n-t);a[c*3]=h*Math.sin(u)*Math.cos(d),a[c*3+1]=h*Math.sin(u)*Math.sin(d),a[c*3+2]=h*Math.cos(u)}const o=new ot;o.setAttribute("position",new It(a,3));const l=new Jr({size:i,color:14544639,transparent:!0,opacity:r,sizeAttenuation:!0});ai.add(new bo(o,l))})}tx();const Ws=document.createElement("div");Ws.id="loading-overlay";Ws.innerHTML=`
+  <div class="loader-content">
+    <div class="spinner"></div>
+    <p class="loader-text">LUNAOPS</p>
+    <p class="loader-sub" id="load-status">Initializing high-fidelity lunar model…</p>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+  </div>
+`;document.body.appendChild(Ws);function Bn(s,e){const t=document.getElementById("load-status");if(t&&(t.textContent=s),e!==void 0){const n=document.getElementById("progress-fill");n&&(n.style.width=`${Math.min(100,e)}%`)}}function nx(){Ws.style.opacity="0",setTimeout(()=>Ws.remove(),800)}const ho=[{label:"⛰ Relief: 1× (True Scale)",factor:1},{label:"⛰ Relief: 2× (Subtle)",factor:2},{label:"⛰ Relief: 4× (Exag.)",factor:4},{label:"⛰ Relief: Off (Sphere)",factor:0}];let Nr=0;function ix(s,e){return new Ct({map:s,normalMap:e||void 0,normalScale:e?new ne(.45,.45):void 0,roughness:.95,metalness:0,envMapIntensity:0})}function sx(s,e,t,n,i){const r=(s%1+1)%1*(t-1),a=Mi.clamp(1-e,0,1)*(n-1),o=Math.floor(r),l=(o+1)%t,c=Math.floor(a),d=Math.min(c+1,n-1),u=r-o,h=a-c,f=i[(c*t+o)*4]/255,g=i[(c*t+l)*4]/255,v=i[(d*t+o)*4]/255,p=i[(d*t+l)*4]/255,m=f*(1-u)+g*u,y=v*(1-u)+p*u,_=m*(1-h)+y*h;return Do+_*j0}function rx(s,e){const t=s.attributes.position,n=s.attributes.uv,i=t.count,r=document.createElement("canvas");r.width=e.width,r.height=e.height;const a=r.getContext("2d");a.drawImage(e,0,0);const l=a.getImageData(0,0,r.width,r.height).data;Zi=new Float32Array(t.array.length),Zi.set(t.array),Ai=new Float32Array(i),Pr=new Float32Array(t.array.length);const c=new E,d=new E,u=ho[Nr].factor;for(let h=0;h<i;h++){c.fromBufferAttribute(t,h);const f=n.getX(h),g=n.getY(h),v=sx(f,g,r.width,r.height,l);Ai[h]=v;const p=v/Po*Ti;d.copy(c).normalize();const m=c.clone().add(d.clone().multiplyScalar(p));Pr[h*3]=m.x,Pr[h*3+1]=m.y,Pr[h*3+2]=m.z,c.add(d.multiplyScalar(p*u)),t.setXYZ(h,c.x,c.y,c.z)}t.needsUpdate=!0,s.computeVertexNormals(),s.computeBoundingSphere()}function ax(s){if(!$t||!Zi||!Ai)return;const e=$t.geometry.attributes.position,t=e.count,n=new E,i=new E;for(let r=0;r<t;r++){n.set(Zi[r*3],Zi[r*3+1],Zi[r*3+2]);const o=Ai[r]/Po*Ti;i.copy(n).normalize(),n.add(i.multiplyScalar(o*s)),e.setXYZ(r,n.x,n.y,n.z)}e.needsUpdate=!0,$t.geometry.computeVertexNormals()}function ox(s){return s.colorSpace=vt,s.anisotropy=sn.capabilities.getMaxAnisotropy(),s.minFilter=xn,s.magFilter=Dt,s.generateMipmaps=!0,s.wrapS=ri,s.wrapT=qt,s.needsUpdate=!0,s}const du=new Ao;async function lx(){const s=new URL("/assets/lroc_color_2k-CuNckXFP.jpg",import.meta.url).href,e=[{url:"/generated/lroc_color_4k.webp",label:"NASA LROC 4K (WebP)",is4K:!0},{url:"/generated/lroc_color_4k.jpg",label:"NASA LROC 4K (JPEG)",is4K:!0},{url:"/generated/lroc_color_2k.jpg",label:"NASA LROC 2K (Fallback)",is4K:!1},{url:s,label:"NASA LROC 2K (Fallback)",is4K:!1}];let t=null;for(const n of e)try{Bn(`Loading ${n.label}…`,n.is4K?12:25);const i=await new Promise((r,a)=>{du.load(n.url,o=>r(o),void 0,o=>a(o))});return ox(i),console.log(`[LUNAOPS] Successfully loaded color texture: ${n.label} (${n.url})`),{texture:i,label:n.label,is4K:n.is4K}}catch(i){t=i,console.warn(`[LUNAOPS] Could not load ${n.label} from ${n.url}. Trying next fallback…`,i)}throw new Error(`[LUNAOPS] All color texture candidates failed to load: ${t}`)}async function cx(){const{texture:s,label:e,is4K:t}=await lx();Bn("Loading DEM normal map…",35);let n=null;try{n=await new Promise((a,o)=>{du.load("/generated/ldem_normal_map_half.png",l=>{l.colorSpace=vn,l.anisotropy=sn.capabilities.getMaxAnisotropy(),l.wrapS=ri,l.wrapT=qt,a(l)},void 0,o)})}catch{console.warn("[LUNAOPS] Normal map not available — craters will lack micro-detail")}Bn("Loading elevation displacement data…",55);let i=null,r=null;try{r=await new Promise((a,o)=>{const l=new Image;l.crossOrigin="anonymous",l.onload=()=>a(l),l.onerror=o,l.src="/generated/ldem_displacement_8bit.png"}),i=new Mt(r),i.colorSpace=vn,i.needsUpdate=!0}catch{console.warn("[LUNAOPS] Displacement map not available — using smooth sphere")}return{color:s,colorLabel:e,is4K:t,normal:n,displacement:i,displacementImg:r}}let uu={is4K:!0};async function dx(){const s=await cx();uu={label:s.colorLabel,is4K:s.is4K};const e=document.getElementById("telem-color");e&&(e.textContent=s.is4K?"NASA LROC 4K":"NASA LROC 2K (Fallback)"),Bn("Generating high-polygon sphere geometry…",70),await new Promise(o=>setTimeout(o,50));const t=new St(Ti,Yc,Yc/2);Bn("Applying NASA elevation data…",80),await new Promise(o=>setTimeout(o,50)),s.displacementImg&&rx(t,s.displacementImg),Bn("Applying surface materials…",92),await new Promise(o=>setTimeout(o,50));const n=ix(s.color,s.normal);$t=new Ee(t,n),$t.castShadow=!1,$t.receiveShadow=!1,ft=new ht,ft.rotation.x=Mi.degToRad(6.68),ft.add($t),wi=new a0(Ti),wi.setOnSelectSite(o=>{Vr(o.lat,o.lon,`${o.name} · ${o.designation}`);const l=document.getElementById("readout-coords"),c=document.getElementById("readout-elev");l&&(l.textContent=`${Math.abs(o.lat).toFixed(2)}° S, ${o.lon.toFixed(1)}° E`),c&&(c.textContent=`${o.elevationM>=0?"+":""}${(o.elevationM/1e3).toFixed(2)} km`)}),ft.add(wi.group),un==="cinematic"&&(ft.visible=!1),ai.add(ft);const i=new St(Ti*1.015,64,32),r=new bt({transparent:!0,side:pn,depthWrite:!1,blending:ln,uniforms:{glowColor:{value:new Te(8952251)},viewVector:{value:Jt.position},intensity:{value:.35}},vertexShader:`
+      uniform vec3 viewVector;
+      varying float vIntensity;
+      void main() {
+        vec3 vNormal = normalize(normalMatrix * normal);
+        vec3 vViewDir = normalize(normalMatrix * viewVector);
+        vIntensity = pow(1.0 - abs(dot(vNormal, vViewDir)), 3.5);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,fragmentShader:`
+      uniform vec3 glowColor;
+      uniform float intensity;
+      varying float vIntensity;
+      void main() {
+        float alpha = vIntensity * intensity;
+        gl_FragColor = vec4(glowColor, alpha);
+      }
+    `}),a=new Ee(i,r);ft.add(a),Bn("Ready",100),setTimeout(nx,500)}dx().catch(s=>{console.error("[LUNAOPS] Build error:",s),Bn("Failed to initialize — see console",0)});const Uo=document.createElement("div");Uo.id="ui-layer";Uo.innerHTML=`
+<div class="hud-top">
+  <div class="brand">
+    <div class="brand-header-row">
+      <span class="brand-dot"></span>
+      <h1 class="title">LUNAOPS</h1>
+      <span class="scene-mode-badge" id="scene-mode-badge">CINEMATIC JOURNEY</span>
+    </div>
+    <p class="subtitle">SELENE LABS · NASA Space Apps 2026</p>
+    <div class="scene-mode-switch">
+      <button id="btn-mode-cinematic" class="mode-pill active" title="Earth-to-Moon Cinematic Journey (Part A)">🎬 Cinematic Journey</button>
+      <button id="btn-mode-workstation" class="mode-pill" title="Detailed Lunar Surface &amp; South Pole Operations Workstation">🌕 Moon Workstation</button>
+    </div>
+    <div class="cinematic-inspection-bar" id="cinematic-inspection-bar">
+      <span class="inspect-label">FOCUS:</span>
+      <button class="inspect-pill active" data-target="panorama" title="Wide-angle Earth-to-Moon trajectory panorama">🌌 Panorama</button>
+      <button class="inspect-pill" data-target="earth" title="Inspect Blue Marble Earth, night lights and cloud layer">🌍 Earth</button>
+      <button class="inspect-pill" data-target="spacecraft" title="Inspect conceptual translunar crew and service spacecraft">🛰 Spacecraft</button>
+      <button class="inspect-pill" data-target="astronaut" title="Inspect extravehicular astronaut exploration model">👨‍🚀 Astronaut</button>
+      <button class="inspect-pill" data-target="lander" title="Inspect conceptual robotic lunar descent lander">🚀 Lander</button>
+      <button class="inspect-pill" data-target="moon" title="Inspect destination Moon and South Pole target region">🌕 Moon</button>
+    </div>
+    <div class="data-readout" id="data-readout" style="display: none;">
+      <span class="readout-label">TARGET</span>
+      <span class="readout-value" id="active-site-display">Artemis Site 01 (Ridge)</span>
+      <span class="readout-label">COORDINATES</span>
+      <span class="readout-value" id="readout-coords">—</span>
+      <span class="readout-label">ELEVATION</span>
+      <span class="readout-value" id="readout-elev">—</span>
+    </div>
+  </div>
+  <div class="controls-panel">
+    <div class="controls-group">
+      <button id="btn-new-mission" title="Launch Mission Scenario Configuration &amp; Landing Site Selection">🚀 New Mission Analysis</button>
+      <button id="btn-compare-sites" class="btn-highlight-compare" title="Open Candidate-Site Comparison Workspace (Side-by-side analysis &amp; ranking)">⚖️ Compare Sites</button>
+      <button id="btn-export-reports" title="Export Scientific Reports &amp; Reproducibility Artifacts (PDF, CSV, JSON)">📤 Export</button>
+    </div>
+    <div class="controls-divider"></div>
+    <div class="controls-group" id="workstation-controls-group" style="display: none;">
+      <button id="btn-south-pole" title="Focus camera directly on Lunar South Pole &amp; Artemis Candidate Sites">🎯 South Pole</button>
+      <button id="btn-topo" class="active" title="Toggle 3D elevation relief scale">⛰ Relief: 1× (True Scale)</button>
+    </div>
+    <div class="controls-divider"></div>
+    <div class="controls-group">
+      <button id="btn-auto" class="active" title="Toggle auto-rotation">⏸ Auto-Rotate</button>
+      <button id="btn-wire" title="Toggle wireframe overlay">◇ Wireframe</button>
+      <button id="btn-sun" title="Animate solar terminator position">☀ Sun Cycle</button>
+      <button id="btn-reset" title="Reset camera to default view">⟲ Reset</button>
+    </div>
+  </div>
+</div>
+<div class="hud-bottom">
+  <div class="telemetry-bar">
+    <span class="telem-item"><span class="telem-label">PROVENANCE</span> NASA LRO/LOLA</span>
+    <span class="telem-item"><span class="telem-label">COLOR</span> <span id="telem-color">${uu.is4K?"NASA LROC 4K":"NASA LROC 2K (Fallback)"}</span></span>
+    <span class="telem-item"><span class="telem-label">RES</span> 16 px/° DEM</span>
+    <span class="telem-item"><span class="telem-label">ELEV</span> ${Do.toFixed(1)} to +${lu.toFixed(1)} km</span>
+    <span class="telem-item"><span class="telem-label">REF</span> ${Po} km</span>
+    <span class="telem-item"><span class="telem-label">SUN AZ/EL</span> <span id="telem-sun-az">—</span></span>
+    <span class="telem-item"><span class="telem-label">EPOCH UTC</span> <span id="utc-clock">2026-10-16T12:00:00Z</span></span>
+  </div>
+  <p class="info-line">Drag to rotate · Scroll to zoom · Hover or click Moon surface for coordinates &amp; elevation</p>
+</div>
+`;document.body.appendChild(Uo);e0({sunLight:js,earthshineLight:No});xt=new q0;ai.add(xt.rootGroup);xt.setControls(mt);xt.init(Jt,sn,{onLoadProgress:(s,e)=>{Bn(s,e)},onLoaded:()=>{console.log("[LUNAOPS] Cinematic scene initialized successfully"),un==="cinematic"&&(xt==null||xt.setVisible(!0),ft&&(ft.visible=!1))},onError:s=>{console.warn("[LUNAOPS] Cinematic scene load notice:",s)}});Xt=new u0;document.getElementById("btn-new-mission").addEventListener("click",()=>{Xt==null||Xt.toggle()});var Jc;(Jc=document.getElementById("btn-export-reports"))==null||Jc.addEventListener("click",()=>{Xt&&Xt.openExportModal()});si=new h0;document.getElementById("btn-compare-sites").addEventListener("click",()=>{si==null||si.toggle()});si.setOnInspectSiteOnGlobe(s=>{Oo({name:s.name,designation:"Candidate Site",latitudeDeg:s.lat,longitudeDeg:s.lon,elevationM:s.elevationM,isInsideSite01DEM:s.lat<=-89.4&&s.lat>=-89.55&&s.lon>=221&&s.lon<=224});const t=su(s.lat,s.lon,Ti).clone().applyMatrix4(ft.matrixWorld),n=t.clone().normalize(),i=t.clone().add(n.clone().multiplyScalar(.75));Vs(i,t,1.2)});function Oo(s){if(!ft)return;if(!Nn){Nn=new ht,Nn.name="TargetSiteMarker";const a=new ts(.012,.018,32),o=new Pt({color:3718648,side:Wt,transparent:!0,opacity:.9}),l=new Ee(a,o);Nn.add(l);const c=new St(.006,16,16),d=new Pt({color:16777215}),u=new Ee(c,d);Nn.add(u);const h=new ot().setFromPoints([new E(0,0,0),new E(0,0,.06)]),f=new yi({color:3718648,transparent:!0,opacity:.85}),g=new ds(h,f);Nn.add(g),ft.add(Nn)}const e=su(s.latitudeDeg,s.longitudeDeg,Ti*1.002);Nn.position.copy(e);const t=e.clone().normalize();Nn.quaternion.setFromUnitVectors(new E(0,0,1),t);const n=document.getElementById("active-site-display");n&&(n.textContent=`${s.name} · ${s.designation}`);const i=document.getElementById("readout-coords"),r=document.getElementById("readout-elev");i&&(i.textContent=Ei(s.latitudeDeg,s.longitudeDeg)),r&&(r.textContent=`${s.elevationM>=0?"+":""}${(s.elevationM/1e3).toFixed(2)} km`),Vr(s.latitudeDeg,s.longitudeDeg,`${s.name} · ${s.designation}`)}Xt.setOnSiteChanged(s=>{Oo(s)});Xt.setOnTimelineScrubbed(s=>{const[e,t,n]=lo(s.sun.direction_unit),i=8;js.position.set(e*i,t*i,n*i);const r=document

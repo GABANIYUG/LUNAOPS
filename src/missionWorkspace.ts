@@ -185,6 +185,10 @@ export class MissionWorkspace {
     this.container.classList.add('hidden');
   }
 
+  public getIsOpen(): boolean {
+    return this.isOpen;
+  }
+
   public toggle() {
     if (this.isOpen) this.close();
     else this.open();

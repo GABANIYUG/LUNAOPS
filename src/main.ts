@@ -103,6 +103,14 @@ controls.enablePan = false;
 controls.rotateSpeed = 0.45;
 controls.zoomSpeed = 0.7;
 
+let isUserInteractingWithControls = false;
+controls.addEventListener('start', () => {
+  isUserInteractingWithControls = true;
+});
+controls.addEventListener('end', () => {
+  isUserInteractingWithControls = false;
+});
+
 // ── Lighting (physically motivated) ───────────────────────────
 // Very faint ambient — the moon in space only has light from the Sun
 const ambient = new THREE.AmbientLight(0x0a0a18, 0.06);
@@ -597,10 +605,15 @@ hud.id = 'ui-layer';
 hud.innerHTML = `
 <div class="hud-top">
   <div class="brand">
-    <h1 class="title">LUNAOPS</h1>
+    <div class="brand-header-row">
+      <span class="brand-dot"></span>
+      <h1 class="title">LUNAOPS</h1>
+    </div>
     <p class="subtitle">SELENE LABS · NASA Space Apps 2026</p>
     <div class="mission-badge"><span class="mission-badge-dot"></span>MISSION FOCUS: LUNAR SOUTH POLE LANDING SAFETY</div>
     <div class="data-readout" id="data-readout">
+      <span class="readout-label">TARGET</span>
+      <span class="readout-value" id="active-site-display">Artemis Site 01 (Ridge)</span>
       <span class="readout-label">COORDINATES</span>
       <span class="readout-value" id="readout-coords">—</span>
       <span class="readout-label">ELEVATION</span>
@@ -608,26 +621,36 @@ hud.innerHTML = `
     </div>
   </div>
   <div class="controls-panel">
-    <button id="btn-compare-sites" class="btn-highlight-compare" title="Open Candidate-Site Comparison Workspace (Side-by-side analysis &amp; ranking)">⚖️ Compare Sites</button>
-    <button id="btn-export-reports" title="Export Scientific Reports &amp; Reproducibility Artifacts (PDF, CSV, JSON)">📤 Export</button>
-    <button id="btn-new-mission" title="Launch Mission Scenario Configuration & Landing Site Selection">🚀 New Mission Analysis</button>
-    <button id="btn-south-pole" title="Focus camera directly on Lunar South Pole & Artemis Candidate Sites">🎯 South Pole</button>
-    <button id="btn-reset" title="Reset camera to default view">⟲ Reset</button>
-    <button id="btn-auto" title="Toggle auto-rotation">⏸ Auto-Rotate</button>
-    <button id="btn-topo" class="active" title="Toggle 3D elevation relief scale">⛰ Relief: 1× (True Scale)</button>
-    <button id="btn-wire" title="Toggle wireframe overlay">◇ Wireframe</button>
-    <button id="btn-sun" title="Animate solar terminator position">☀ Sun Cycle</button>
+    <div class="controls-group">
+      <button id="btn-new-mission" title="Launch Mission Scenario Configuration &amp; Landing Site Selection">🚀 New Mission Analysis</button>
+      <button id="btn-compare-sites" class="btn-highlight-compare" title="Open Candidate-Site Comparison Workspace (Side-by-side analysis &amp; ranking)">⚖️ Compare Sites</button>
+      <button id="btn-export-reports" title="Export Scientific Reports &amp; Reproducibility Artifacts (PDF, CSV, JSON)">📤 Export</button>
+    </div>
+    <div class="controls-divider"></div>
+    <div class="controls-group">
+      <button id="btn-south-pole" title="Focus camera directly on Lunar South Pole &amp; Artemis Candidate Sites">🎯 South Pole</button>
+      <button id="btn-topo" class="active" title="Toggle 3D elevation relief scale">⛰ Relief: 1× (True Scale)</button>
+    </div>
+    <div class="controls-divider"></div>
+    <div class="controls-group">
+      <button id="btn-auto" title="Toggle auto-rotation">⏸ Auto-Rotate</button>
+      <button id="btn-wire" title="Toggle wireframe overlay">◇ Wireframe</button>
+      <button id="btn-sun" title="Animate solar terminator position">☀ Sun Cycle</button>
+      <button id="btn-reset" title="Reset camera to default view">⟲ Reset</button>
+    </div>
   </div>
 </div>
 <div class="hud-bottom">
   <div class="telemetry-bar">
-    <span class="telem-item"><span class="telem-label">SRC</span> NASA LRO/LOLA</span>
+    <span class="telem-item"><span class="telem-label">PROVENANCE</span> NASA LRO/LOLA</span>
     <span class="telem-item"><span class="telem-label">COLOR</span> <span id="telem-color">${activeColorDetails.is4K ? 'NASA LROC 4K' : 'NASA LROC 2K (Fallback)'}</span></span>
     <span class="telem-item"><span class="telem-label">RES</span> 16 px/° DEM</span>
     <span class="telem-item"><span class="telem-label">ELEV</span> ${ELEV_MIN_KM.toFixed(1)} to +${ELEV_MAX_KM.toFixed(1)} km</span>
     <span class="telem-item"><span class="telem-label">REF</span> ${MOON_REAL_RADIUS_KM} km</span>
+    <span class="telem-item"><span class="telem-label">SUN AZ/EL</span> <span id="telem-sun-az">—</span></span>
+    <span class="telem-item"><span class="telem-label">EPOCH UTC</span> <span id="utc-clock">2026-10-16T12:00:00Z</span></span>
   </div>
-  <p class="info-line">Drag to rotate · Scroll to zoom · Hover for elevation data</p>
+  <p class="info-line">Drag to rotate · Scroll to zoom · Hover or click Moon surface for coordinates &amp; elevation &nbsp;|&nbsp; <a href="/" style="color:var(--cyan-400);text-decoration:none;font-family:var(--font-mono);font-size:0.72em;letter-spacing:0.08em;opacity:0.7;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">← LANDING</a></p>
 </div>
 `;
 document.body.appendChild(hud);
@@ -725,6 +748,10 @@ function updateTargetSiteMarker(site: LandingSiteConfig) {
   targetSiteMarker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
 
   // Synchronize readout and SPICE panel
+  const siteDisplayEl = document.getElementById('active-site-display');
+  if (siteDisplayEl) {
+    siteDisplayEl.textContent = `${site.name} · ${site.designation}`;
+  }
   const coordsEl = document.getElementById('readout-coords');
   const elevEl = document.getElementById('readout-elev');
   if (coordsEl) coordsEl.textContent = formatSelenographicCoords(site.latitudeDeg, site.longitudeDeg);
@@ -955,7 +982,11 @@ function animate() {
   }
 
   // Slow, gentle auto-rotation (real moon synodic rotation ~ 27.3 days)
-  if (moonGroup && autoRotate) {
+  const isAnyModalOpen =
+    Boolean(missionWorkspace?.getIsOpen()) ||
+    Boolean(candidateComparisonWorkspace?.getIsOpen());
+
+  if (moonGroup && autoRotate && !isUserInteractingWithControls && !cameraTween && !isAnyModalOpen) {
     moonGroup.rotation.y += 0.03 * dt;
   }
 

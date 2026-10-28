@@ -1,0 +1,103 @@
+class q0{constructor(){le(this,"rootGroup");le(this,"earthGroup");le(this,"moonGroup");le(this,"spacecraftGroup");le(this,"landerGroup");le(this,"astronautGroup");le(this,"starsGroup");le(this,"lightingGroup");le(this,"earthMesh",null);le(this,"earthCloudsMesh",null);le(this,"earthGlowMesh",null);le(this,"moonMesh",null);le(this,"moonGlowMesh",null);le(this,"sunLight",null);le(this,"camera",null);le(this,"controls",null);le(this,"cameraTween",null);le(this,"currentLookTarget",new E(0,0,0));le(this,"focusPositions",{panorama:{cameraPos:new E(-1,3.5,14.5),lookAt:new E(0,.2,-4)},earth:{cameraPos:new E(-11.5,3,-1),lookAt:new E(-14,1,-7)},spacecraft:{cameraPos:new E(-1.2,1.8,-.8),lookAt:new E(-2.2,.8,-3.2)},astronaut:{cameraPos:new E(-3.2,1.6,-1.8),lookAt:new E(-3.8,1.1,-2.6)},lander:{cameraPos:new E(5.2,1.6,-.8),lookAt:new E(4.5,.4,-2.8)},moon:{cameraPos:new E(12.5,1.2,1.5),lookAt:new E(14,-.5,-3.5)}});le(this,"isVisible",!0);le(this,"textureLoader",new Ao);le(this,"gltfLoader",new f0);le(this,"disposables",[]);this.rootGroup=new ht,this.rootGroup.name="CinematicSceneRoot",this.earthGroup=new ht,this.earthGroup.name="CinematicEarth",this.moonGroup=new ht,this.moonGroup.name="CinematicMoon",this.spacecraftGroup=new ht,this.spacecraftGroup.name="CinematicSpacecraft",this.landerGroup=new ht,this.landerGroup.name="CinematicLander",this.astronautGroup=new ht,this.astronautGroup.name="CinematicAstronaut",this.starsGroup=new ht,this.starsGroup.name="CinematicStars",this.lightingGroup=new ht,this.lightingGroup.name="CinematicLighting",this.rootGroup.add(this.lightingGroup),this.rootGroup.add(this.starsGroup),this.rootGroup.add(this.earthGroup),this.rootGroup.add(this.moonGroup),this.rootGroup.add(this.spacecraftGroup),this.rootGroup.add(this.landerGroup),this.rootGroup.add(this.astronautGroup)}async init(e,t,n){var i,r,a,o,l,c,d,u,h,f;this.camera=e;try{(i=n==null?void 0:n.onLoadProgress)==null||i.call(n,"Setting up deep space lighting…",10),this.setupLighting(),(r=n==null?void 0:n.onLoadProgress)==null||r.call(n,"Creating starfield & celestial cosmos…",25),this.createDeepSpaceBackground(),(a=n==null?void 0:n.onLoadProgress)==null||a.call(n,"Building realistic Earth (Day, Night, Specular, Clouds)…",45),await this.buildEarth(t),(o=n==null?void 0:n.onLoadProgress)==null||o.call(n,"Positioning lunar destination model…",65),await this.buildMoon(),(l=n==null?void 0:n.onLoadProgress)==null||l.call(n,"Constructing conceptual translunar spacecraft…",80),this.buildConceptualSpacecraft(),(c=n==null?void 0:n.onLoadProgress)==null||c.call(n,"Constructing conceptual robotic lunar lander…",90),this.buildConceptualLander(),(d=n==null?void 0:n.onLoadProgress)==null||d.call(n,"Loading astronaut exploration model…",95),await this.loadAstronautModel(),(u=n==null?void 0:n.onLoadProgress)==null||u.call(n,"Cinematic scene ready",100),(h=n==null?void 0:n.onLoaded)==null||h.call(n)}catch(g){console.error("[CinematicScene] Error initializing cinematic scene:",g),(f=n==null?void 0:n.onError)==null||f.call(n,(g==null?void 0:g.message)||"Failed to initialize cinematic scene")}}setupLighting(){this.sunLight=new Hs(16776178,3.4),this.sunLight.position.set(24,10,18),this.lightingGroup.add(this.sunLight);const e=new $d(659752,.08);this.lightingGroup.add(e);const t=new Hs(3718648,.15);t.position.set(-15,2,-5),this.lightingGroup.add(t)}createDeepSpaceBackground(){[{count:2500,rMin:120,rMax:180,size:.08,color:16777215,opacity:.8},{count:1800,rMin:80,rMax:130,size:.12,color:9684477,opacity:.9},{count:600,rMin:60,rMax:100,size:.18,color:16707722,opacity:.95}].forEach(({count:a,rMin:o,rMax:l,size:c,color:d,opacity:u})=>{const h=new Float32Array(a*3);for(let v=0;v<a;v++){const p=Math.random()*Math.PI*2,m=Math.acos(2*Math.random()-1),y=o+Math.random()*(l-o);h[v*3]=y*Math.sin(m)*Math.cos(p),h[v*3+1]=y*Math.sin(m)*Math.sin(p),h[v*3+2]=y*Math.cos(m)}const f=new ot;f.setAttribute("position",new It(h,3)),this.disposables.push(f);const g=new Jr({size:c,color:d,transparent:!0,opacity:u,sizeAttenuation:!0});this.disposables.push(g),this.starsGroup.add(new bo(f,g))});const t=this.textureLoader.load("/generated/earth/milkyway_4k.webp",void 0,void 0,()=>{console.warn("[CinematicScene] Milky Way texture failed to load, falling back to procedural starfield.")});this.disposables.push(t);const n=new St(220,32,32);this.disposables.push(n);const i=new Pt({map:t,side:zt,transparent:!0,opacity:.45,color:2241365});this.disposables.push(i);const r=new Ee(n,i);this.starsGroup.add(r)}async buildEarth(e){this.earthGroup.position.set(-14,1,-7),this.earthGroup.rotation.z=Mi.degToRad(-23.44);const n=await this.loadTextureAsync("/generated/earth/earth_day_2k.webp"),i=await this.loadTextureAsync("/generated/earth/earth_night_2k.webp"),r=await this.loadTextureAsync("/generated/earth/earth_normal_2k.webp"),a=await this.loadTextureAsync("/generated/earth/earth_specular_2k.webp"),o=await this.loadTextureAsync("/generated/earth/earth_clouds_rgba_2k.webp");n.colorSpace=vt,i.colorSpace=vt,n.anisotropy=Math.min(e.capabilities.getMaxAnisotropy(),8);const l=new St(3.8,128,64);this.disposables.push(l);const c={uniforms:{dayTexture:{value:n},nightTexture:{value:i},specularMap:{value:a},normalMap:{value:r},sunDirection:{value:new E(1,.4,.7).normalize()}},vertexShader:`
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+        void main() {
+          vUv = uv;
+          vNormal = normalize(normalMatrix * normal);
+          vec4 worldPos = modelMatrix * vec4(position, 1.0);
+          vWorldPosition = worldPos.xyz;
+          gl_Position = projectionMatrix * viewMatrix * worldPos;
+        }
+      `,fragmentShader:`
+        uniform sampler2D dayTexture;
+        uniform sampler2D nightTexture;
+        uniform sampler2D specularMap;
+        uniform sampler2D normalMap;
+        uniform vec3 sunDirection;
+
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+
+        void main() {
+          vec3 N = normalize(vNormal);
+          vec3 L = normalize(sunDirection);
+          vec3 V = normalize(cameraPosition - vWorldPosition);
+          vec3 H = normalize(L + V);
+
+          float NdotL = dot(N, L);
+          // Smooth transition between day and night across the terminator
+          float terminator = smoothstep(-0.12, 0.12, NdotL);
+
+          vec4 dayColor = texture2D(dayTexture, vUv);
+          vec4 nightColor = texture2D(nightTexture, vUv);
+          float specMask = texture2D(specularMap, vUv).r;
+
+          // Daylight diffuse + ambient
+          float diffuse = max(0.04, NdotL);
+          vec3 dayLit = dayColor.rgb * diffuse;
+
+          // Ocean specular sun glint
+          float spec = pow(max(0.0, dot(N, H)), 24.0) * specMask * 0.75;
+          dayLit += vec3(1.0, 0.95, 0.85) * spec * max(0.0, NdotL);
+
+          // Night side city lights (bright warm glow)
+          vec3 nightLit = nightColor.rgb * (1.0 - terminator) * 1.5;
+
+          vec3 finalColor = mix(nightLit, dayLit, terminator);
+
+          // Subtle atmospheric rim Fresnel on Earth limb
+          float fresnel = pow(1.0 - max(0.0, dot(N, V)), 3.0);
+          vec3 atmosphereGlow = vec3(0.2, 0.55, 1.0) * fresnel * max(0.1, NdotL + 0.3);
+          finalColor += atmosphereGlow * 0.45;
+
+          gl_FragColor = vec4(finalColor, 1.0);
+        }
+      `},d=new bt({uniforms:c.uniforms,vertexShader:c.vertexShader,fragmentShader:c.fragmentShader});this.disposables.push(d),this.earthMesh=new Ee(l,d),this.earthGroup.add(this.earthMesh);const u=3.8*1.012,h=new St(u,96,48);this.disposables.push(h);const f=new Ct({map:o,transparent:!0,opacity:.82,roughness:.9,metalness:0,depthWrite:!1});this.disposables.push(f),this.earthCloudsMesh=new Ee(h,f),this.earthGroup.add(this.earthCloudsMesh);const g=3.8*1.035,v=new St(g,64,32);this.disposables.push(v);const p=new bt({transparent:!0,side:zt,blending:ln,depthWrite:!1,uniforms:{glowColor:{value:new Te(3718648)},viewVector:{value:new E}},vertexShader:`
+        varying float vIntensity;
+        void main() {
+          vec3 vNormal = normalize(normalMatrix * normal);
+          vIntensity = pow(0.65 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.5);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,fragmentShader:`
+        uniform vec3 glowColor;
+        varying float vIntensity;
+        void main() {
+          gl_FragColor = vec4(glowColor, vIntensity * 0.5);
+        }
+      `});this.disposables.push(p),this.earthGlowMesh=new Ee(v,p),this.earthGroup.add(this.earthGlowMesh)}async buildMoon(){this.moonGroup.position.set(14,-.5,-3.5),this.moonGroup.rotation.x=Mi.degToRad(35),this.moonGroup.rotation.y=Mi.degToRad(-15);const t=await this.loadTextureAsync("/generated/lroc_color_4k.webp").catch(()=>this.loadTextureAsync("/generated/lroc_color_2k.jpg")),n=await this.loadTextureAsync("/generated/ldem_normal_map.png").catch(()=>null);t.colorSpace=vt;const i=new St(1.6,128,64);this.disposables.push(i);const r=new Ct({map:t,normalMap:n||void 0,normalScale:n?new ne(.45,.45):void 0,roughness:.95,metalness:0});this.disposables.push(r),this.moonMesh=new Ee(i,r),this.moonGroup.add(this.moonMesh);const a=new St(1.6*1.018,64,32);this.disposables.push(a);const o=new bt({transparent:!0,side:pn,blending:ln,depthWrite:!1,uniforms:{glowColor:{value:new Te(10859772)},intensity:{value:.28}},vertexShader:`
+        varying float vIntensity;
+        void main() {
+          vec3 vNormal = normalize(normalMatrix * normal);
+          vIntensity = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 3.2);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,fragmentShader:`
+        uniform vec3 glowColor;
+        uniform float intensity;
+        varying float vIntensity;
+        void main() {
+          gl_FragColor = vec4(glowColor, vIntensity * intensity);
+        }
+      `});this.disposables.push(o),this.moonGlowMesh=new Ee(a,o),this.moonGroup.add(this.moonGlowMesh)}buildConceptualSpacecraft(){this.spacecraftGroup.position.set(-2.2,.8,-3.2),this.spacecraftGroup.rotation.set(.15,.45,-.1),this.spacecraftGroup.scale.setScalar(.75);const e=new Ct({color:15724527,roughness:.35,metalness:.1}),t=new Ct({color:16096779,metalness:.95,roughness:.2}),n=new Ct({color:1976635,roughness:.3,metalness:.85}),i=new Ct({color:1920728,roughness:.15,metalness:.8}),r=new Ct({color:165063,roughness:.1,metalness:.9});this.disposables.push(e,t,n,i,r);const a=new Fs(.55,.85,24);this.disposables.push(a);const o=new Ee(a,e);o.position.set(0,0,.55),o.rotation.x=Math.PI/2,this.spacecraftGroup.add(o);const l=new wo(.12,.03,12,24);this.disposables.push(l);const c=new Ee(l,n);c.position.set(0,0,.98),this.spacecraftGroup.add(c);const d=new On(.52,.52,.95,24);this.disposables.push(d);const u=new Ee(d,t);u.position.set(0,0,-.35),u.rotation.x=Math.PI/2,this.spacecraftGroup.add(u);const h=new Fs(.28,.45,18,1,!0);this.disposables.push(h);const f=new Ee(h,n);f.position.set(0,0,-1),f.rotation.x=-Math.PI/2,this.spacecraftGroup.add(f),[-1,1].forEach(p=>{const m=new ht,y=new On(.025,.025,.5,8);this.disposables.push(y);const _=new Ee(y,n);_.position.set(p*.75,0,-.35),_.rotation.z=Math.PI/2,m.add(_);const M=new kn(1.2,.02,.45);this.disposables.push(M);const L=new Ee(M,i);L.position.set(p*1.5,0,-.35),m.add(L),this.spacecraftGroup.add(m)});const g=new St(.24,16,8,0,Math.PI*2,0,Math.PI*.4);this.disposables.push(g);const v=new Ee(g,e);v.position.set(.4,.48,-.5),v.rotation.set(-.6,.4,.2),this.spacecraftGroup.add(v);for(let p=0;p<4;p++){const m=p*Math.PI/2,y=new kn(.08,.08,.08);this.disposables.push(y);const _=new Ee(y,n);_.position.set(Math.cos(m)*.54,Math.sin(m)*.54,-.2),this.spacecraftGroup.add(_)}}buildConceptualLander(){this.landerGroup.position.set(4.5,.4,-2.8),this.landerGroup.rotation.set(-.2,-.35,.1),this.landerGroup.scale.setScalar(.7);const e=new Ct({color:16096779,metalness:.95,roughness:.2}),t=new Ct({color:6583435,metalness:.8,roughness:.35}),n=new Ct({color:16317180,roughness:.4,metalness:.1}),i=new Ct({color:1981066,roughness:.2,metalness:.75});this.disposables.push(e,t,n,i);const r=new On(.65,.75,.4,8);this.disposables.push(r);const a=new Ee(r,n);a.position.set(0,.2,0),this.landerGroup.add(a);for(let v=0;v<4;v++){const p=v*Math.PI/2+Math.PI/4,m=new St(.24,16,16);this.disposables.push(m);const y=new Ee(m,e);y.position.set(Math.cos(p)*.48,.22,Math.sin(p)*.48),this.landerGroup.add(y)}const o=new Fs(.25,.42,16,1,!0);this.disposables.push(o);const l=new Ee(o,t);l.position.set(0,-.2,0),l.rotation.x=Math.PI,this.landerGroup.add(l);for(let v=0;v<4;v++){const p=v*Math.PI/2,m=new ht,y=new On(.025,.02,.75,8);this.disposables.push(y);const _=new Ee(y,t);_.position.set(.35,-.25,0),_.rotation.z=-Math.PI/3.5,m.add(_);const M=new On(.12,.1,.025,12);this.disposables.push(M);const L=new Ee(M,e);L.position.set(.68,-.58,0),m.add(L),m.rotation.y=p,this.landerGroup.add(m)}const c=new On(.02,.02,.5,8);this.disposables.push(c);const d=new Ee(c,t);d.position.set(0,.65,0),this.landerGroup.add(d);const u=new St(.16,12,6,0,Math.PI*2,0,Math.PI*.4);this.disposables.push(u);const h=new Ee(u,n);h.position.set(0,.9,0),h.rotation.set(-.4,.3,0),this.landerGroup.add(h);const f=new kn(.4,.02,.4);this.disposables.push(f);const g=new Ee(f,i);g.position.set(0,.42,0),this.landerGroup.add(g)}async loadAstronautModel(){this.astronautGroup.position.set(-3.8,1.1,-2.6),this.astronautGroup.rotation.set(.1,.7,-.25);try{const t=(await new Promise((c,d)=>{this.gltfLoader.load("/models/Astronaut.glb",u=>c(u),void 0,u=>d(u))})).scene,n=new Mn().setFromObject(t),i=new E;n.getSize(i);const o=.85/(Math.max(i.x,i.y,i.z)||1);t.scale.setScalar(o);const l=new E;n.getCenter(l),t.position.sub(l.multiplyScalar(o)),t.traverse(c=>{c.isMesh&&(c.castShadow=!0,c.receiveShadow=!0,c.material&&(c.material.roughness=.4,c.material.metalness=.15))}),this.astronautGroup.add(t),console.log("[CinematicScene] Astronaut.glb loaded successfully")}catch(e){console.warn("[CinematicScene] Failed to load Astronaut.glb, creating procedural EVA astronaut fallback:",e),this.createProceduralAstronaut()}}createProceduralAstronaut(){const e=new Ct({color:15592941,roughness:.4,metalness:.1}),t=new Ct({color:16096779,metalness:.95,roughness:.1}),n=new Ct({color:13948120,roughness:.5,metalness:.2});this.disposables.push(e,t,n);const i=new Os(.18,.32,8,16);this.disposables.push(i);const r=new Ee(i,e);r.position.set(0,0,0),this.astronautGroup.add(r);const a=new St(.14,16,16);this.disposables.push(a);const o=new Ee(a,e);o.position.set(0,.32,.02),this.astronautGroup.add(o);const l=new St(.11,16,16,0,Math.PI*2,0,Math.PI*.5);this.disposables.push(l);const c=new Ee(l,t);c.position.set(0,.33,.06),c.rotation.x=Math.PI/2,this.astronautGroup.add(c);const d=new kn(.24,.36,.16);this.disposables.push(d);const u=new Ee(d,n);u.position.set(0,.05,-.16),this.astronautGroup.add(u),[-1,1].forEach(h=>{const f=new Os(.06,.28,6,12);this.disposables.push(f);const g=new Ee(f,e);g.position.set(h*.26,.1,.08),g.rotation.set(-.4,0,h*.6),this.astronautGroup.add(g);const v=new Os(.07,.35,6,12);this.disposables.push(v);const p=new Ee(v,e);p.position.set(h*.12,-.38,.04),p.rotation.set(.3,0,h*.15),this.astronautGroup.add(p)})}loadTextureAsync(e){return new Promise((t,n)=>{this.textureLoader.load(e,i=>{this.disposables.push(i),t(i)},void 0,i=>n(i))})}update(e,t){if(this.isVisible&&(this.earthMesh&&(this.earthMesh.rotation.y+=.015*e),this.earthCloudsMesh&&(this.earthCloudsMesh.rotation.y+=.022*e),this.moonMesh&&(this.moonMesh.rotation.y+=.008*e),this.astronautGroup&&(this.astronautGroup.position.y=1.1+Math.sin(t*.8)*.035,this.astronautGroup.rotation.y+=.03*e,this.astronautGroup.rotation.z=-.25+Math.sin(t*.5)*.02),this.spacecraftGroup&&(this.spacecraftGroup.position.y=.8+Math.cos(t*.6)*.025,this.spacecraftGroup.rotation.x=.15+Math.sin(t*.4)*.015),this.cameraTween&&this.camera)){const n=performance.now()-this.cameraTween.startTime,i=Math.min(1,n/this.cameraTween.duration),r=i<.5?4*i*i*i:1-Math.pow(-2*i+2,3)/2;this.camera.position.lerpVectors(this.cameraTween.startPos,this.cameraTween.targetPos,r),this.currentLookTarget.lerpVectors(this.cameraTween.startLook,this.cameraTween.targetLook,r),this.camera.lookAt(this.currentLookTarget),this.controls&&(this.controls.target.copy(this.currentLookTarget),this.controls.update()),i>=1&&(this.cameraTween=null)}}setControls(e){this.controls=e,e&&(e.target.copy(this.currentLookTarget),e.update())}focusOn(e,t=1.4){const n=this.focusPositions[e];if(!n||!this.camera)return;const i=this.controls?this.controls.target.clone():this.currentLookTarget.clone();this.cameraTween={startPos:this.camera.position.clone(),targetPos:n.cameraPos.clone(),startLook:i,targetLook:n.lookAt.clone(),startTime:performance.now(),duration:t*1e3}}setVisible(e){this.isVisible=e,this.rootGroup.visible=e}getVisible(){return this.isVisible}destroy(){this.rootGroup.removeFromParent(),this.disposables.forEach(e=>{try{"dispose"in e&&typeof e.dispose=="function"&&e.dispose()}catch{}}),this.disposables=[],console.log("[CinematicScene] Resources successfully cleaned up.")}}const Ti=1.6,Po=1737.4,Do=-8.9815,lu=10.6855,j0=lu-Do,Yc=512,Y0=66825;let $t=null,ft,wi=null,Xt=null,si=null,Nn=null,Rs=!0,Rr=!1,Lr=.6,Ls=!1,Ps=!1,Ai=null,Zi=null,Pr=null,xt=null,un="cinematic",mn=null;function Vs(s,e,t=1.2){mn={startPos:Jt.position.clone(),targetPos:s.clone(),startLook:mt.target.clone(),targetLook:e.clone(),startTime:performance.now(),duration:t*1e3}}const qs=document.createElement("canvas"),K0=document.getElementById("app");K0.appendChild(qs);const sn=new Id({canvas:qs,antialias:!0,powerPreference:"high-performance"});sn.setSize(window.innerWidth,window.innerHeight);sn.setPixelRatio(Math.min(window.devicePixelRatio,2));sn.outputColorSpace=vt;sn.toneMapping=nd;sn.toneMappingExposure=1;sn.shadowMap.enabled=!1;const ai=new $v;ai.background=new Te(Y0);const Jt=new Vt(38,window.innerWidth/window.innerHeight,.01,500);Jt.position.set(-1,3.5,14.5);const mt=new G_(Jt,sn.domElement);mt.enableDamping=!0;mt.dampingFactor=.06;mt.minDistance=.4;mt.maxDistance=60;mt.enablePan=!0;mt.rotateSpeed=.45;mt.zoomSpeed=.7;mt.target.set(0,.2,-4);let Io=!1;mt.addEventListener("start",()=>{Io=!0});mt.addEventListener("end",()=>{Io=!1});const J0=new $d(657944,.06);ai.add(J0);const js=new Hs(16775408,3.2);js.position.set(5,1.5,3);ai.add(js);const No=new Hs(3359914,.08);No.position.set(-5,0,-3);ai.add(No);const Ys=new X_(sn),Z0=new q_(ai,Jt);Ys.addPass(Z0);const cu=new fs(new ne(window.innerWidth,window.innerHeight),.12,.5,.88);Ys.addPass(cu);const Q0={uniforms:{tDiffuse:{value:null},offset:{value:.9},darkness:{value:1.3}},vertexShader:`
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,fragmentShader:`
+    uniform sampler2D tDiffuse;
+    uniform float offset;
+    uniform float darkness;
+    varying vec2 vUv;
+    void main() {
+      vec4 color = texture2D(tDiffuse, vUv);
+      vec2 center = vUv - 0.5;
+      float dist = length(center);
+      float vig = smoothstep(offset, offset - 0.5, dist * (darkness + offset));
+      color.rgb *= vig;
+      gl_FragColor = color;
+    }
+  `},ex=new Kd(Q0);Ys.addPass(ex);function tx(){[{count:1500,rMin:60,rMax:90,size:.04,opacity:.5},{count:2e3,rMin:100,rMax:150,size:.06,opacity:.7},{count:500,rMin:40,rMax:60,size:.12,opacity:.9}].forEach(({count:e,rMin:t,rMax:n,size:i,opacity:r})=>{const a=new Float32Array(e*3);for(let c=0;c<e;c++){const d=Math.random()*Math.PI*2,u=Math.acos(2*Math.random()-1),h=t+Math.random()*(n-t);a[c*3]=h*Math.sin(u)*Math.cos(d),a[c*3+1]=h*Math.sin(u)*Math.sin(d),a[c*3+2]=h*Math.cos(u)}const o=new ot;o.setAttribute("position",new It(a,3));const l=new Jr({size:i,color:14544639,transparent:!0,opacity:r,sizeAttenuation:!0});ai.add(new bo(o,l))})}tx();
