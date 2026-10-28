@@ -169,97 +169,109 @@ sunGlowMesh.position.copy(SUN_DIR).multiplyScalar(55);
 sunGlowMesh.lookAt(camera.position);
 scene.add(sunGlowMesh);
 
-// ── Earth ─────────────────────────────────────────────────────
+// ── Texture Loader & NASA Assets ─────────────────────────────
+const texLoader = new THREE.TextureLoader();
+
+// Earth NASA maps
+const earthDayMap = texLoader.load('/generated/earth/earth_day_2k.webp');
+earthDayMap.colorSpace = THREE.SRGBColorSpace;
+
+const earthNightMap = texLoader.load('/generated/earth/earth_night_2k.webp');
+earthNightMap.colorSpace = THREE.SRGBColorSpace;
+
+const earthSpecMap = texLoader.load('/generated/earth/earth_specular_2k.webp');
+
+const earthCloudsMap = texLoader.load('/generated/earth/earth_clouds_2k.webp');
+earthCloudsMap.colorSpace = THREE.SRGBColorSpace;
+
+// Moon NASA LROC & LOLA maps
+const moonColorMap = texLoader.load('/generated/lroc_color_2k.jpg');
+moonColorMap.colorSpace = THREE.SRGBColorSpace;
+
+const moonNormalMap = texLoader.load('/generated/ldem_normal_map_half.png');
+moonNormalMap.colorSpace = THREE.NoColorSpace;
+
+// ── Earth (Photorealistic NASA Multi-Layer Model) ────────────
 const EARTH_RADIUS = 6.0;
 const earthGroup = new THREE.Group();
-earthGroup.position.set(18, -2, -8);
+earthGroup.position.set(26, -2, -8);  // shifted right so 3D appears in right 60%
 scene.add(earthGroup);
 
-// Earth sphere (procedural shader — no texture needed for cinematic look)
+// 1. Earth Surface (Day / Night / Specular Oceans / Atmospheric Terminator)
 const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, 128, 64);
 const EarthMaterial = new THREE.ShaderMaterial({
   uniforms: {
-    sunDir:      { value: SUN_DIR.clone() },
-    time:        { value: 0 },
-    cloudOffset: { value: 0 },
+    dayTexture:      { value: earthDayMap },
+    nightTexture:    { value: earthNightMap },
+    specularTexture: { value: earthSpecMap },
+    sunDir:          { value: SUN_DIR.clone() },
+    viewPos:         { value: camera.position },
   },
   vertexShader: `
     varying vec3 vNormal;
     varying vec3 vWorldPos;
     varying vec2 vUv;
+    varying vec3 vViewVector;
+    uniform vec3 viewPos;
+
     void main() {
-      vNormal   = normalize(normalMatrix * normal);
-      vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
-      vUv       = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      vNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+      vec4 worldPos = modelMatrix * vec4(position, 1.0);
+      vWorldPos = worldPos.xyz;
+      vUv = uv;
+      vViewVector = normalize(viewPos - worldPos.xyz);
+      gl_Position = projectionMatrix * viewMatrix * worldPos;
     }
   `,
   fragmentShader: `
-    uniform vec3  sunDir;
-    uniform float time;
-    uniform float cloudOffset;
-    varying vec3  vNormal;
-    varying vec3  vWorldPos;
-    varying vec2  vUv;
-
-    // Simple noise for continents / clouds
-    float hash(vec2 p) {
-      p = fract(p * vec2(234.34, 435.345));
-      p += dot(p, p + 34.23);
-      return fract(p.x * p.y);
-    }
-
-    float noise(vec2 p) {
-      vec2 i = floor(p); vec2 f = fract(p);
-      f = f*f*(3.0-2.0*f);
-      float a = hash(i);
-      float b = hash(i+vec2(1,0));
-      float c = hash(i+vec2(0,1));
-      float d = hash(i+vec2(1,1));
-      return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
-    }
-
-    float fbm(vec2 p) {
-      float v = 0.0; float a = 0.5;
-      for(int i=0;i<5;i++) { v += a*noise(p); p*=2.1; a*=0.5; }
-      return v;
-    }
+    uniform sampler2D dayTexture;
+    uniform sampler2D nightTexture;
+    uniform sampler2D specularTexture;
+    uniform vec3 sunDir;
+    varying vec3 vNormal;
+    varying vec3 vWorldPos;
+    varying vec2 vUv;
+    varying vec3 vViewVector;
 
     void main() {
       vec3 N = normalize(vNormal);
-      float NdotL = max(dot(N, sunDir), 0.0);
-      float limb  = 1.0 - max(dot(N, normalize(vec3(0.0, 0.0, 1.0))), 0.0);
+      vec3 V = normalize(vViewVector);
+      vec3 L = normalize(sunDir);
 
-      // Ocean base color
-      vec3 ocean = vec3(0.04, 0.12, 0.32);
-      // Land (using fbm on UV)
-      float land = fbm(vUv * 6.5 + vec2(1.3, 0.7));
-      land = smoothstep(0.52, 0.58, land);
-      vec3 landColor = mix(vec3(0.08, 0.22, 0.06), vec3(0.32, 0.24, 0.14), fbm(vUv*14.0));
-      vec3 base = mix(ocean, landColor, land);
+      float NdotL = dot(N, L);
+      float dayFactor = smoothstep(-0.08, 0.12, NdotL);
 
-      // Polar ice
-      float lat = abs(vUv.y - 0.5) * 2.0;
-      float ice = smoothstep(0.76, 0.88, lat);
-      base = mix(base, vec3(0.88, 0.93, 1.0), ice);
+      vec3 dayColor = texture2D(dayTexture, vUv).rgb;
+      vec3 nightColor = texture2D(nightTexture, vUv).rgb;
+      float specMask = texture2D(specularTexture, vUv).r;
 
-      // Cloud layer
-      float cloud = fbm(vUv * 5.0 + vec2(cloudOffset, cloudOffset * 0.3));
-      cloud = smoothstep(0.55, 0.72, cloud);
-      base = mix(base, vec3(1.0), cloud * 0.88);
+      // Specular reflection (sun glinting off ocean surface)
+      vec3 R = reflect(-L, N);
+      float spec = pow(max(dot(R, V), 0.0), 28.0) * specMask * dayFactor;
+      vec3 sunSpecular = vec3(1.0, 0.96, 0.88) * spec * 2.2;
 
-      // Lighting
-      vec3 diffuse = base * (NdotL * 1.1 + 0.04);
+      // Direct sunlight with smooth terminator
+      float diff = max(NdotL, 0.0);
+      vec3 surfaceColor = dayColor * (diff * 1.25 + 0.02);
 
-      // Atmosphere rim glow (deep blue)
-      float atmosphere = pow(limb, 2.8) * 0.65;
-      vec3 atmo = vec3(0.1, 0.25, 0.8) * atmosphere;
+      // Night city lights on dark side
+      float nightFactor = smoothstep(0.08, -0.15, NdotL);
+      vec3 nightLights = nightColor * nightFactor * 1.8;
 
-      // Night-side city glow (subtle warm)
-      float night = max(1.0 - NdotL * 3.0, 0.0);
-      vec3 cities = vec3(0.8, 0.55, 0.15) * night * 0.06 * land;
+      // Sunset terminator warm sliver along twilight
+      float terminator = 1.0 - abs(NdotL * 5.0);
+      terminator = clamp(terminator, 0.0, 1.0) * max(dot(N, V), 0.0);
+      vec3 sunsetColor = vec3(0.95, 0.45, 0.12) * terminator * 0.4;
 
-      gl_FragColor = vec4(diffuse + atmo + cities, 1.0);
+      // Rayleigh limb haze (blue horizon)
+      float limb = 1.0 - max(dot(N, V), 0.0);
+      float atmoFresnel = pow(limb, 3.0);
+      vec3 atmosphere = vec3(0.2, 0.55, 1.0) * atmoFresnel * (max(NdotL, -0.2) + 0.2) * 1.15;
+
+      vec3 finalColor = mix(nightLights, surfaceColor + sunSpecular, dayFactor);
+      finalColor += sunsetColor + atmosphere;
+
+      gl_FragColor = vec4(finalColor, 1.0);
     }
   `,
 });
@@ -267,126 +279,184 @@ const EarthMaterial = new THREE.ShaderMaterial({
 const earthMesh = new THREE.Mesh(earthGeo, EarthMaterial);
 earthGroup.add(earthMesh);
 
-// Atmosphere shell around Earth
-const atmosGeo = new THREE.SphereGeometry(EARTH_RADIUS * 1.025, 64, 32);
+// 2. Earth Clouds Layer (independent drifting sphere)
+const cloudsGeo = new THREE.SphereGeometry(EARTH_RADIUS * 1.012, 128, 64);
+const EarthCloudsMaterial = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  uniforms: {
+    cloudsTexture: { value: earthCloudsMap },
+    sunDir:        { value: SUN_DIR.clone() },
+    viewPos:       { value: camera.position },
+  },
+  vertexShader: `
+    varying vec3 vNormal;
+    varying vec2 vUv;
+    varying vec3 vViewVector;
+    uniform vec3 viewPos;
+
+    void main() {
+      vNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+      vec4 worldPos = modelMatrix * vec4(position, 1.0);
+      vUv = uv;
+      vViewVector = normalize(viewPos - worldPos.xyz);
+      gl_Position = projectionMatrix * viewMatrix * worldPos;
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D cloudsTexture;
+    uniform vec3 sunDir;
+    varying vec3 vNormal;
+    varying vec2 vUv;
+    varying vec3 vViewVector;
+
+    void main() {
+      vec3 N = normalize(vNormal);
+      vec3 V = normalize(vViewVector);
+      vec3 L = normalize(sunDir);
+
+      float NdotL = dot(N, L);
+      float cloudAlpha = texture2D(cloudsTexture, vUv).r;
+
+      // Sunlight on clouds
+      float diff = max(NdotL, 0.0) * 1.35 + 0.04;
+      vec3 cloudColor = vec3(0.96, 0.98, 1.0) * diff;
+
+      // Cloud limb brightening
+      float limb = 1.0 - max(dot(N, V), 0.0);
+      cloudColor += vec3(0.25, 0.5, 0.95) * pow(limb, 3.2) * max(NdotL, 0.0);
+
+      // Fade out clouds on deep night side
+      float dayFactor = smoothstep(-0.2, 0.15, NdotL);
+
+      gl_FragColor = vec4(cloudColor, cloudAlpha * dayFactor * 0.88);
+    }
+  `,
+});
+
+const earthCloudsMesh = new THREE.Mesh(cloudsGeo, EarthCloudsMaterial);
+earthGroup.add(earthCloudsMesh);
+
+// 3. Atmosphere Rayleigh Shell
+const atmosGeo = new THREE.SphereGeometry(EARTH_RADIUS * 1.028, 64, 32);
 const atmosMat = new THREE.ShaderMaterial({
   transparent: true, side: THREE.FrontSide, depthWrite: false,
   blending: THREE.AdditiveBlending,
-  uniforms: { sunDir: { value: SUN_DIR.clone() } },
+  uniforms: {
+    sunDir:  { value: SUN_DIR.clone() },
+    viewPos: { value: camera.position },
+  },
   vertexShader: `
     uniform vec3 sunDir;
+    uniform vec3 viewPos;
     varying float vRim;
     varying float vSunFacing;
+
     void main() {
-      vec3 N = normalize(normalMatrix * normal);
-      vec3 V = normalize(normalMatrix * vec3(0.0,0.0,1.0));
-      vRim = pow(1.0 - abs(dot(N, V)), 3.0);
-      vSunFacing = max(dot(N, sunDir), 0.0);
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      vec3 N = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+      vec4 worldPos = modelMatrix * vec4(position, 1.0);
+      vec3 V = normalize(viewPos - worldPos.xyz);
+      vRim = pow(1.0 - max(dot(N, V), 0.0), 3.2);
+      vSunFacing = max(dot(N, sunDir), -0.2) + 0.2;
+      gl_Position = projectionMatrix * viewMatrix * worldPos;
     }
   `,
   fragmentShader: `
     varying float vRim;
     varying float vSunFacing;
+
     void main() {
-      vec3 dayAtmo   = vec3(0.15, 0.45, 1.0);
-      vec3 nightAtmo = vec3(0.02, 0.06, 0.18);
-      vec3 atmo      = mix(nightAtmo, dayAtmo, vSunFacing);
-      float alpha    = vRim * 0.7;
-      gl_FragColor   = vec4(atmo, alpha);
+      vec3 dayAtmo   = vec3(0.18, 0.52, 1.0);
+      vec3 nightAtmo = vec3(0.01, 0.04, 0.12);
+      vec3 atmo      = mix(nightAtmo, dayAtmo, clamp(vSunFacing, 0.0, 1.0));
+      gl_FragColor   = vec4(atmo, vRim * vSunFacing * 0.78);
     }
   `,
 });
 earthGroup.add(new THREE.Mesh(atmosGeo, atmosMat));
 
-// ── Moon ──────────────────────────────────────────────────────
+// ── Moon (Photorealistic NASA LROC & LOLA DEM Model) ─────────
 const MOON_RADIUS = 1.65;
 const moonGroup = new THREE.Group();
-moonGroup.position.set(-4, 1.2, -22);
+moonGroup.position.set(4, 1.2, -22);  // shifted right to match Earth offset
 moonGroup.rotation.x = THREE.MathUtils.degToRad(6.68);
 scene.add(moonGroup);
 
-const moonGeo = new THREE.SphereGeometry(MOON_RADIUS, 96, 48);
+const moonGeo = new THREE.SphereGeometry(MOON_RADIUS, 128, 64);
 const MoonMaterial = new THREE.ShaderMaterial({
   uniforms: {
-    sunDir:  { value: SUN_DIR.clone() },
-    time:    { value: 0 },
+    colorTexture:  { value: moonColorMap },
+    normalTexture: { value: moonNormalMap },
+    sunDir:        { value: SUN_DIR.clone() },
+    viewPos:       { value: camera.position },
   },
   vertexShader: `
     varying vec3 vNormal;
     varying vec3 vWorldPos;
     varying vec2 vUv;
+    varying vec3 vViewVector;
+    uniform vec3 viewPos;
+
     void main() {
-      vNormal   = normalize(normalMatrix * normal);
-      vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
-      vUv       = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      vNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+      vec4 worldPos = modelMatrix * vec4(position, 1.0);
+      vWorldPos = worldPos.xyz;
+      vUv = uv;
+      vViewVector = normalize(viewPos - worldPos.xyz);
+      gl_Position = projectionMatrix * viewMatrix * worldPos;
     }
   `,
   fragmentShader: `
-    uniform vec3  sunDir;
-    uniform float time;
-    varying vec3  vNormal;
-    varying vec3  vWorldPos;
-    varying vec2  vUv;
+    uniform sampler2D colorTexture;
+    uniform sampler2D normalTexture;
+    uniform vec3 sunDir;
+    varying vec3 vNormal;
+    varying vec3 vWorldPos;
+    varying vec2 vUv;
+    varying vec3 vViewVector;
 
-    float hash(vec2 p) {
-      p = fract(p * vec2(127.1, 311.7));
-      p += dot(p, p + 23.4);
-      return fract(p.x * p.y);
-    }
+    vec3 perturbNormal(vec3 N, vec3 V, vec2 uv, vec3 normalTex) {
+      vec3 dPdx = dFdx(vWorldPos);
+      vec3 dPdy = dFdy(vWorldPos);
+      vec2 dUvdx = dFdx(uv);
+      vec2 dUvdy = dFdy(uv);
 
-    float noise(vec2 p) {
-      vec2 i = floor(p); vec2 f = fract(p);
-      f = f*f*(3.0-2.0*f);
-      return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),
-                 mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);
-    }
+      vec3 Np = normalize(N);
+      vec3 T = normalize(dPdx * dUvdy.y - dPdy * dUvdx.y);
+      vec3 B = normalize(dPdy * dUvdx.x - dPdx * dUvdx.x);
+      mat3 TBN = mat3(T, B, Np);
 
-    float fbm(vec2 p) {
-      float v=0.0; float a=0.5;
-      for(int i=0;i<5;i++){v+=a*noise(p);p*=2.2;a*=0.48;}
-      return v;
-    }
-
-    float craterSDF(vec2 uv, vec2 center, float r, float rimW) {
-      float d = length(uv - center);
-      float rim = smoothstep(r, r - rimW, d) - smoothstep(r - rimW, r - rimW*2.0, d);
-      float floor_ = smoothstep(r*0.85, r*0.5, d) * 0.08;
-      return rim * 0.12 - floor_;
+      return normalize(TBN * (normalTex * 2.0 - 1.0));
     }
 
     void main() {
-      vec3 N = normalize(vNormal);
-      float NdotL = max(dot(N, sunDir), 0.0);
+      vec3 N_geom = normalize(vNormal);
+      vec3 V = normalize(vViewVector);
+      vec3 L = normalize(sunDir);
 
-      // Regolith base — silver-gray with regional variation
-      float regional = fbm(vUv * 3.5 + vec2(0.8, 1.4));
-      vec3 highland  = vec3(0.70, 0.70, 0.68);
-      vec3 mare      = vec3(0.35, 0.34, 0.33);
-      vec3 base      = mix(highland, mare, smoothstep(0.42, 0.62, regional));
+      // Sample LOLA DEM normal map to perturb surface
+      vec3 normalSample = texture2D(normalTexture, vUv).rgb;
+      vec3 N = perturbNormal(N_geom, V, vUv, normalSample);
 
-      // Micro-texture
-      base *= 0.9 + fbm(vUv * 18.0) * 0.2;
+      // Sample genuine NASA LROC texture
+      vec3 albedo = texture2D(colorTexture, vUv).rgb;
 
-      // Procedural crater highlights
-      float craterBump = 0.0;
-      craterBump += craterSDF(vUv, vec2(0.23, 0.46), 0.06, 0.012);
-      craterBump += craterSDF(vUv, vec2(0.68, 0.31), 0.09, 0.018);
-      craterBump += craterSDF(vUv, vec2(0.42, 0.72), 0.04, 0.009);
-      craterBump += craterSDF(vUv, vec2(0.15, 0.65), 0.07, 0.014);
-      craterBump += craterSDF(vUv, vec2(0.80, 0.58), 0.05, 0.010);
-      base += craterBump;
+      float NdotL = dot(N, L);
 
-      // Diffuse lighting — harsh terminator, minimal scattering
-      float diff = NdotL * 1.15 + 0.02;
-      vec3 color = base * diff;
+      // Real lunar photometric response (crisp terminator without atmosphere)
+      float direct = max(NdotL, 0.0);
 
-      // Earthshine — very faint blue fill on dark side
-      float earthshine = max(1.0 - NdotL * 4.0, 0.0) * 0.04;
-      color += vec3(0.2, 0.4, 0.8) * earthshine;
+      // Regolith retro-reflection surge (opposition effect)
+      float retro = pow(max(dot(N, normalize(L + V)), 0.0), 3.0) * 0.14;
 
-      gl_FragColor = vec4(color, 1.0);
+      vec3 diffuse = albedo * (direct * 1.35 + retro);
+
+      // Subtle Earthshine on the night side facing Earth
+      float earthshine = max(-NdotL, 0.0) * 0.022;
+      vec3 earthshineColor = vec3(0.12, 0.28, 0.65) * earthshine * albedo;
+
+      vec3 finalColor = diffuse + earthshineColor;
+      gl_FragColor = vec4(finalColor, 1.0);
     }
   `,
 });
@@ -395,7 +465,7 @@ const moonMesh = new THREE.Mesh(moonGeo, MoonMaterial);
 moonGroup.add(moonMesh);
 
 // Moon rim glow (faint silver)
-const moonGlowGeo = new THREE.SphereGeometry(MOON_RADIUS * 1.012, 64, 32);
+const moonGlowGeo = new THREE.SphereGeometry(MOON_RADIUS * 1.01, 64, 32);
 const moonGlowMat = new THREE.ShaderMaterial({
   transparent: true, side: THREE.FrontSide, depthWrite: false,
   blending: THREE.AdditiveBlending,
@@ -412,18 +482,19 @@ const moonGlowMat = new THREE.ShaderMaterial({
   `,
   fragmentShader: `
     varying float vI;
-    void main() { gl_FragColor = vec4(vec3(0.75, 0.82, 0.9), vI * 0.22); }
+    void main() { gl_FragColor = vec4(vec3(0.75, 0.82, 0.9), vI * 0.16); }
   `,
 });
 moonGroup.add(new THREE.Mesh(moonGlowGeo, moonGlowMat));
 
 // ── Spacecraft path indicator (subtle dashed line) ───────────
+const CRAFT_BEZIER_START = new THREE.Vector3(26, -2, -8);
+const CRAFT_BEZIER_CTRL  = new THREE.Vector3(12, 7, -12); // Bezier ctrl point
+const CRAFT_BEZIER_END   = new THREE.Vector3(6.4, 2.2, -20.8); // High lunar orbit insertion point
+
 function buildOrbitPath() {
   const points: THREE.Vector3[] = [];
-  const start = new THREE.Vector3(18, -2, -8);
-  const end   = new THREE.Vector3(-4, 1.2, -22);
-  const ctrl  = new THREE.Vector3(2, 8, -10); // Bezier ctrl point
-  const curve = new THREE.QuadraticBezierCurve3(start, ctrl, end);
+  const curve = new THREE.QuadraticBezierCurve3(CRAFT_BEZIER_START, CRAFT_BEZIER_CTRL, CRAFT_BEZIER_END);
   for (let i = 0; i <= 100; i++) points.push(curve.getPoint(i / 100));
 
   const geo = new THREE.BufferGeometry().setFromPoints(points);
@@ -438,40 +509,289 @@ function buildOrbitPath() {
 }
 buildOrbitPath();
 
-// ── Small spacecraft indicator ────────────────────────────────
-const craftGeo = new THREE.OctahedronGeometry(0.12, 0);
-const craftMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, wireframe: false });
-const craftMesh = new THREE.Mesh(craftGeo, craftMat);
-craftMesh.visible = false; // shown after intro
-scene.add(craftMesh);
+// ── Realistic Spacecraft / Satellite 3D Model ────────────────
+interface SpacecraftModel {
+  group: THREE.Group;
+  thrusterMat: THREE.Material;
+  beaconMat: THREE.Material;
+}
 
-// ── HTML overlay (3-zone: top wordmark / clear centre / bottom CTA) ──────
+function createSpacecraft(): SpacecraftModel {
+  const root = new THREE.Group();
+
+  // Materials
+  const hullMat = new THREE.MeshStandardMaterial({
+    color: 0xf1f5f9,
+    metalness: 0.6,
+    roughness: 0.35,
+  });
+
+  const goldFoilMat = new THREE.MeshStandardMaterial({
+    color: 0xdeb841,
+    metalness: 0.95,
+    roughness: 0.2,
+  });
+
+  const darkTitaniumMat = new THREE.MeshStandardMaterial({
+    color: 0x1e2025,
+    metalness: 0.9,
+    roughness: 0.4,
+    side: THREE.DoubleSide,
+  });
+
+  const solarCellMat = new THREE.MeshStandardMaterial({
+    color: 0x081a38,
+    metalness: 0.88,
+    roughness: 0.15,
+  });
+
+  const solarFrameMat = new THREE.MeshStandardMaterial({
+    color: 0xca9834,
+    metalness: 0.92,
+    roughness: 0.28,
+  });
+
+  const dishMat = new THREE.MeshStandardMaterial({
+    color: 0xdde2ea,
+    metalness: 0.9,
+    roughness: 0.25,
+    side: THREE.DoubleSide,
+  });
+
+  const glassMat = new THREE.MeshStandardMaterial({
+    color: 0x071524,
+    metalness: 0.95,
+    roughness: 0.1,
+  });
+
+  // 1. Central Bus (octagonal service module)
+  const busGeo = new THREE.CylinderGeometry(0.34, 0.36, 0.85, 8);
+  const busMesh = new THREE.Mesh(busGeo, hullMat);
+  root.add(busMesh);
+
+  // Gold foil thermal blanket band
+  const foilGeo = new THREE.CylinderGeometry(0.362, 0.362, 0.38, 8);
+  const foilMesh = new THREE.Mesh(foilGeo, goldFoilMat);
+  root.add(foilMesh);
+
+  // 2. Command Module / Forward Crew Capsule
+  const capsuleGeo = new THREE.CylinderGeometry(0.18, 0.34, 0.45, 8);
+  const capsuleMesh = new THREE.Mesh(capsuleGeo, hullMat);
+  capsuleMesh.position.y = 0.65;
+  root.add(capsuleMesh);
+
+  // Docking ring
+  const dockRingGeo = new THREE.TorusGeometry(0.12, 0.022, 8, 20);
+  const dockRing = new THREE.Mesh(dockRingGeo, darkTitaniumMat);
+  dockRing.rotation.x = Math.PI / 2;
+  dockRing.position.y = 0.88;
+  root.add(dockRing);
+
+  // Windows / sensor visor
+  const windowGeo = new THREE.BoxGeometry(0.08, 0.05, 0.02);
+  const windowL = new THREE.Mesh(windowGeo, glassMat);
+  windowL.position.set(-0.08, 0.68, 0.22);
+  windowL.rotation.x = -0.25;
+  root.add(windowL);
+
+  const windowR = new THREE.Mesh(windowGeo, glassMat);
+  windowR.position.set(0.08, 0.68, 0.22);
+  windowR.rotation.x = -0.25;
+  root.add(windowR);
+
+  // 3. Engine Nozzle (aft)
+  const engineGeo = new THREE.CylinderGeometry(0.24, 0.1, 0.32, 16, 1, true);
+  const engineMesh = new THREE.Mesh(engineGeo, darkTitaniumMat);
+  engineMesh.position.y = -0.58;
+  root.add(engineMesh);
+
+  // Ion thruster plasma glow
+  const thrusterGeo = new THREE.ConeGeometry(0.14, 0.5, 12, 1, true);
+  const thrusterMat = new THREE.MeshBasicMaterial({
+    color: 0x38bdf8,
+    transparent: true,
+    opacity: 0.65,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+  });
+  const thrusterMesh = new THREE.Mesh(thrusterGeo, thrusterMat);
+  thrusterMesh.position.y = -0.82;
+  thrusterMesh.rotation.x = Math.PI; // point exhaust backward
+  root.add(thrusterMesh);
+
+  // 4. Solar Wings (Port & Starboard)
+  [-1, 1].forEach((side) => {
+    const wingGroup = new THREE.Group();
+    wingGroup.position.set(side * 0.45, 0, 0);
+
+    // Boom
+    const boomGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.3, 8);
+    const boomMesh = new THREE.Mesh(boomGeo, darkTitaniumMat);
+    boomMesh.rotation.z = Math.PI / 2;
+    boomMesh.position.x = side * 0.15;
+    wingGroup.add(boomMesh);
+
+    // 3 panels
+    for (let p = 0; p < 3; p++) {
+      const panelGroup = new THREE.Group();
+      panelGroup.position.x = side * (0.35 + p * 0.52);
+
+      const frameGeo = new THREE.BoxGeometry(0.48, 0.014, 0.32);
+      const frameMesh = new THREE.Mesh(frameGeo, solarFrameMat);
+      panelGroup.add(frameMesh);
+
+      const cellGeo = new THREE.BoxGeometry(0.45, 0.016, 0.29);
+      const cellMesh = new THREE.Mesh(cellGeo, solarCellMat);
+      panelGroup.add(cellMesh);
+
+      wingGroup.add(panelGroup);
+    }
+
+    // Wingtip navigation beacon
+    const tipBeaconGeo = new THREE.SphereGeometry(0.025, 8, 8);
+    const tipBeaconMat = new THREE.MeshBasicMaterial({
+      color: side === -1 ? 0xff3344 : 0x00ff88,
+    });
+    const tipBeacon = new THREE.Mesh(tipBeaconGeo, tipBeaconMat);
+    tipBeacon.position.set(side * 1.95, 0.02, 0.16);
+    wingGroup.add(tipBeacon);
+
+    root.add(wingGroup);
+  });
+
+  // 5. High-Gain Dish Antenna
+  const dishGroup = new THREE.Group();
+  dishGroup.position.set(0.32, 0.2, 0.32);
+  dishGroup.rotation.set(-0.6, 0.7, 0);
+
+  const dishGeo = new THREE.SphereGeometry(0.24, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.42);
+  const dishMesh = new THREE.Mesh(dishGeo, dishMat);
+  dishGroup.add(dishMesh);
+
+  const feedMastGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.22, 6);
+  const feedMast = new THREE.Mesh(feedMastGeo, darkTitaniumMat);
+  feedMast.position.z = 0.11;
+  feedMast.rotation.x = Math.PI / 2;
+  dishGroup.add(feedMast);
+
+  const feedHornGeo = new THREE.ConeGeometry(0.035, 0.06, 8);
+  const feedHorn = new THREE.Mesh(feedHornGeo, goldFoilMat);
+  feedHorn.position.z = 0.22;
+  feedHorn.rotation.x = -Math.PI / 2;
+  dishGroup.add(feedHorn);
+
+  root.add(dishGroup);
+
+  // 6. RCS Thruster Pods (4 corners)
+  const rcsAngles = [Math.PI / 4, (3 * Math.PI) / 4, (5 * Math.PI) / 4, (7 * Math.PI) / 4];
+  rcsAngles.forEach((angle) => {
+    const rcsGeo = new THREE.BoxGeometry(0.07, 0.07, 0.07);
+    const rcsMesh = new THREE.Mesh(rcsGeo, darkTitaniumMat);
+    rcsMesh.position.set(Math.cos(angle) * 0.35, 0.3, Math.sin(angle) * 0.35);
+    root.add(rcsMesh);
+  });
+
+  // 7. Flashing Strobe Navigation Beacon (center top)
+  const beaconGeo = new THREE.SphereGeometry(0.03, 8, 8);
+  const beaconMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 1.0,
+  });
+  const beaconMesh = new THREE.Mesh(beaconGeo, beaconMat);
+  beaconMesh.position.y = 0.95;
+  root.add(beaconMesh);
+
+  // Align model orientation:
+  // Flight forward is along -Z
+  const alignedRoot = new THREE.Group();
+  root.rotation.x = Math.PI / 2;
+  alignedRoot.add(root);
+
+  return { group: alignedRoot, thrusterMat, beaconMat };
+}
+
+const spacecraft = createSpacecraft();
+spacecraft.group.visible = false;
+scene.add(spacecraft.group);
+
+// ── HTML overlay: left-panel + cinematic overlays ─────────────────
 const overlay = document.createElement('div');
 overlay.id = 'ui-overlay';
 overlay.innerHTML = `
+  <!-- Cinematic layer effects -->
   <div class="film-grain"></div>
   <div class="vignette"></div>
   <div class="letterbox-top"></div>
   <div class="letterbox-bottom"></div>
 
-  <!-- TOP ZONE: compact wordmark only -->
-  <div class="top-zone">
-    <div class="wordmark-title">LUNAOPS</div>
-    <div class="wordmark-desc">Explore the lunar frontier. Plan with precision.</div>
-  </div>
+  <!-- Left panel: scroll-driven text reveal -->
+  <div class="left-panel" id="left-panel">
 
-  <!-- CENTRE ZONE: intentionally empty — 3D canvas shows through -->
-  <div class="centre-zone" aria-hidden="true"></div>
-
-  <!-- BOTTOM ZONE: Enter Workstation + scroll cue -->
-  <div class="bottom-zone">
-    <a href="/workstation.html" class="btn-enter" id="btn-enter-workstation"
-       aria-label="Enter LUNAOPS Workstation">
-      Enter Workstation
-    </a>
-    <div class="scroll-cue" aria-hidden="true">
-      <div class="scroll-mouse"></div>
+    <!-- Top badge -->
+    <div class="panel-badge">
+      <span class="panel-badge-dot"></span>
+      <span class="panel-badge-text" id="panel-phase-badge">SELENE LABS &middot; NASA SPACE APPS 2026 &middot; LOW EARTH ORBIT</span>
     </div>
+
+    <!-- Giant letter-by-letter wordmark -->
+    <div class="hero-letters-wrap">
+      <div class="hero-letters" aria-label="LUNAOPS">
+        <span class="hero-letter" data-idx="0" aria-hidden="true">L</span>
+        <span class="hero-letter" data-idx="1" aria-hidden="true">U</span>
+        <span class="hero-letter" data-idx="2" aria-hidden="true">N</span>
+        <span class="hero-letter" data-idx="3" aria-hidden="true">A</span>
+        <span class="hero-letter" data-idx="4" aria-hidden="true">O</span>
+        <span class="hero-letter" data-idx="5" aria-hidden="true">P</span>
+        <span class="hero-letter" data-idx="6" aria-hidden="true">S</span>
+      </div>
+      <div class="hero-accent-line" id="accent-line"></div>
+    </div>
+
+    <!-- Tagline -->
+    <div class="hero-tagline" id="hero-tagline">
+      Explore the lunar frontier.<br>Plan with precision.
+    </div>
+
+    <!-- Description -->
+    <p class="hero-desc" id="hero-desc">
+      High-fidelity mission planning built on NASA LRO&thinsp;/&thinsp;LOLA
+      elevation data, LROC imagery and JPL NAIF SPICE ephemerides.
+    </p>
+
+    <!-- Stats row -->
+    <div class="panel-stats" id="panel-stats" aria-label="Key specifications">
+      <div class="stat-item">
+        <span class="stat-val">16 px/&deg;</span>
+        <span class="stat-lbl">DEM Resolution</span>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="stat-item">
+        <span class="stat-val">&plusmn;10.7 km</span>
+        <span class="stat-lbl">Elevation Range</span>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="stat-item">
+        <span class="stat-val">SPICE</span>
+        <span class="stat-lbl">Ephemeris Engine</span>
+      </div>
+    </div>
+
+    <!-- CTA block -->
+    <div class="panel-cta" id="panel-cta">
+      <a href="/workstation.html" class="btn-enter" id="btn-enter-workstation"
+         aria-label="Enter LUNAOPS Workstation">
+        Enter Workstation
+      </a>
+      <span class="cta-subtext">Press <kbd>Enter</kbd> or click to launch</span>
+    </div>
+
+    <!-- Initial scroll cue (visible early, fades out as user progresses) -->
+    <div class="initial-scroll-cue" id="initial-scroll-cue" aria-hidden="true">
+      <div class="scroll-mouse"></div>
+      <span class="scroll-label">Scroll to explore journey</span>
+    </div>
+
   </div>
 `;
 root.appendChild(overlay);
@@ -499,23 +819,19 @@ interface CameraStop {
   progress: number;   // 0-1
 }
 
-// Camera stops are tuned so that:
-// Stop 0: Earth is lower-right, open sky upper-left — wordmark zone stays clear
-// Stop 1: Pull back, both bodies visible, Earth fading left, Moon entering right
-// Stop 2: Mid-journey, spacecraft and Moon dominate centre
-// Stop 3: Lunar close approach, Moon fills frame right-of-centre
+// Camera stops — all look targets shifted +8 X to match world object shift.
+// Objects are in the right 60% of screen so the left panel text is unobstructed.
 const CAMERA_STOPS: CameraStop[] = [
-  { pos: new THREE.Vector3(22,  5, 22),  look: new THREE.Vector3(16, -4, -6),   phase: 0, progress: 0 },
-  { pos: new THREE.Vector3(8,   5, 16),  look: new THREE.Vector3(6,  0, -8),    phase: 1, progress: 0.33 },
-  { pos: new THREE.Vector3(-1,  3,  8),  look: new THREE.Vector3(-2, 0.5, -18), phase: 2, progress: 0.66 },
-  { pos: new THREE.Vector3(-3,  2,  4),  look: new THREE.Vector3(-4, 1.2, -22), phase: 3, progress: 1 },
+  { pos: new THREE.Vector3(30,  5, 22),  look: new THREE.Vector3(24, -3, -6),   phase: 0, progress: 0 },
+  { pos: new THREE.Vector3(16,  5, 18),  look: new THREE.Vector3(14,  0, -8),   phase: 1, progress: 0.33 },
+  { pos: new THREE.Vector3( 6,  3,  8),  look: new THREE.Vector3( 5,  0.5,-18), phase: 2, progress: 0.66 },
+  { pos: new THREE.Vector3( 5,  2,  4),  look: new THREE.Vector3( 4,  1.2,-22), phase: 3, progress: 1 },
 ];
 
 let journeyT = 0;       // 0-1, overall journey progress
-let autoSpeed = 0.003;  // units/second at 60fps
+let autoSpeed = 0.0008; // units/second — slow cinematic drift
 
 const lookTarget = new THREE.Vector3();
-const camPos     = new THREE.Vector3();
 
 function getCameraAtT(t: number) {
   const clamped = Math.max(0, Math.min(1, t));
@@ -536,9 +852,97 @@ function getCameraAtT(t: number) {
   return { pos, look, phase };
 }
 
+// Per-letter reveal thresholds: letter i starts appearing at LETTER_T[i]
+// and is fully opaque at LETTER_T[i] + LETTER_RANGE
+const LETTER_T = [0.00, 0.06, 0.12, 0.18, 0.24, 0.30, 0.36];
+const LETTER_RANGE = 0.08;
+
+function easeInOutCubic(x: number): number {
+  return x < 0.5 ? 4*x*x*x : 1 - Math.pow(-2*x+2,3)/2;
+}
+
 function updateJourneyUI(t: number) {
+  const clampedT = Math.max(0, Math.min(1, t));
+
+  // ── Progress strip ──
   const fill = document.getElementById('journey-fill');
-  if (fill) fill.style.height = `${(Math.max(0, Math.min(1, t)) * 100).toFixed(1)}%`;
+  if (fill) fill.style.height = `${(clampedT * 100).toFixed(1)}%`;
+
+  // ── Mission phase in badge ──
+  const phaseBadge = document.getElementById('panel-phase-badge');
+  if (phaseBadge) {
+    let currentPhase = PHASES[0].name;
+    for (let i = PHASES.length - 1; i >= 0; i--) {
+      if (clampedT >= PHASES[i].progress) {
+        currentPhase = PHASES[i].name;
+        break;
+      }
+    }
+    phaseBadge.textContent = `SELENE LABS · NASA SPACE APPS 2026 · ${currentPhase}`;
+  }
+
+  // ── Letters (scroll-driven, letter-by-letter reveal) ──
+  document.querySelectorAll<HTMLElement>('.hero-letter').forEach((el, i) => {
+    const raw = Math.max(0, Math.min(1, (clampedT - LETTER_T[i]) / LETTER_RANGE));
+    const p   = easeInOutCubic(raw);
+    el.style.opacity   = String(p);
+    el.style.transform = `translateY(${(1-p)*28}px) scale(${0.88 + p*0.12})`;
+    el.style.filter    = p > 0.02 ? `drop-shadow(0 0 ${p * 8}px rgba(56, 189, 248, ${p * 0.45}))` : 'none';
+  });
+
+  // ── Accent underline (grows left-to-right after letter 6 starts) ──
+  const accent = document.getElementById('accent-line');
+  if (accent) {
+    const p = easeInOutCubic(Math.max(0, Math.min(1, (clampedT - 0.38) / 0.12)));
+    accent.style.width   = `${p * 100}%`;
+    accent.style.opacity = String(p);
+  }
+
+  // ── Tagline (after accent line) ──
+  const tagline = document.getElementById('hero-tagline');
+  if (tagline) {
+    const p = easeInOutCubic(Math.max(0, Math.min(1, (clampedT - 0.46) / 0.12)));
+    tagline.style.opacity   = String(p);
+    tagline.style.transform = `translateY(${(1-p)*14}px)`;
+  }
+
+  // ── Description ──
+  const desc = document.getElementById('hero-desc');
+  if (desc) {
+    const p = easeInOutCubic(Math.max(0, Math.min(1, (clampedT - 0.56) / 0.12)));
+    desc.style.opacity   = String(p);
+    desc.style.transform = `translateY(${(1-p)*12}px)`;
+  }
+
+  // ── Stats ──
+  const stats = document.getElementById('panel-stats');
+  if (stats) {
+    const p = easeInOutCubic(Math.max(0, Math.min(1, (clampedT - 0.66) / 0.12)));
+    stats.style.opacity   = String(p);
+    stats.style.transform = `translateY(${(1-p)*10}px)`;
+  }
+
+  // ── CTA block ──
+  const cta = document.getElementById('panel-cta');
+  if (cta) {
+    const p = easeInOutCubic(Math.max(0, Math.min(1, (clampedT - 0.76) / 0.12)));
+    cta.style.opacity   = String(p);
+    cta.style.transform = `translateY(${(1-p)*8}px)`;
+    cta.style.pointerEvents = p > 0.5 ? 'auto' : 'none';
+  }
+
+  // ── Initial scroll cue (visible early, hides cleanly as user progresses) ──
+  const scrollCue = document.getElementById('initial-scroll-cue');
+  if (scrollCue) {
+    if (clampedT > 0.30) {
+      scrollCue.style.display = 'none';
+    } else {
+      scrollCue.style.display = 'flex';
+      const fadeOutP = Math.max(0, Math.min(1, clampedT / 0.25));
+      scrollCue.style.opacity = String(1 - fadeOutP);
+      scrollCue.style.transform = `translateY(${fadeOutP * 12}px)`;
+    }
+  }
 }
 
 // ── Scroll / wheel input scrubs journey (supports reversal) ──
@@ -587,7 +991,6 @@ window.addEventListener('resize', () => {
 
 // ── Render loop ─────────────────────────────────────────────
 const clock = new THREE.Clock();
-const earthStart = earthGroup.position.clone();
 
 function animate() {
   requestAnimationFrame(animate);
@@ -614,24 +1017,50 @@ function animate() {
   // Update journey UI
   updateJourneyUI(journeyT);
 
-  // Craft position along bezier
+  // Craft position along bezier & orbital insertion around Moon
   const curve = new THREE.QuadraticBezierCurve3(
-    new THREE.Vector3(18, -2, -8),
-    new THREE.Vector3(2, 8, -10),
-    new THREE.Vector3(-4, 1.2, -22)
+    CRAFT_BEZIER_START, CRAFT_BEZIER_CTRL, CRAFT_BEZIER_END
   );
-  craftMesh.position.copy(curve.getPoint(Math.min(journeyT, 1)));
-  craftMesh.rotation.y += dt * 0.8;
-  if (journeyT > 0.05) craftMesh.visible = true;
+  const tClamped = Math.max(0.001, Math.min(0.999, journeyT));
+  let craftPoint = curve.getPoint(tClamped);
+  let craftTangent = curve.getTangent(tClamped).normalize();
 
-  // Earth slow rotation
-  earthMesh.rotation.y += dt * 0.012;
-  (EarthMaterial.uniforms.cloudOffset as any).value += dt * 0.003;
-  (EarthMaterial.uniforms.time as any).value = elapsed;
+  if (journeyT >= 0.88) {
+    const orbitT = Math.min(1.0, (journeyT - 0.88) / 0.12);
+    const angle = elapsed * 0.45;
+    const orbitRadiusX = 2.45;
+    const orbitRadiusZ = 2.15;
+    const orbitPoint = new THREE.Vector3(
+      moonGroup.position.x + Math.cos(angle) * orbitRadiusX,
+      moonGroup.position.y + Math.sin(angle * 0.7) * 0.5,
+      moonGroup.position.z + Math.sin(angle) * orbitRadiusZ
+    );
+    craftPoint = craftPoint.lerp(orbitPoint, orbitT);
+    craftTangent = new THREE.Vector3(-Math.sin(angle), Math.cos(angle * 0.7) * 0.35, Math.cos(angle)).normalize();
+  }
 
-  // Moon slow rotation
-  moonMesh.rotation.y += dt * 0.008;
-  (MoonMaterial.uniforms.time as any).value = elapsed;
+  spacecraft.group.position.copy(craftPoint);
+  spacecraft.group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), craftTangent);
+  spacecraft.group.rotateZ(elapsed * 0.12);
+
+  // Pulse the blue ion plasma thruster
+  (spacecraft.thrusterMat as THREE.MeshBasicMaterial).opacity = 0.5 + Math.sin(elapsed * 12.0) * 0.25;
+
+  // Strobe beacon flash
+  (spacecraft.beaconMat as THREE.MeshBasicMaterial).opacity = Math.sin(elapsed * 4.5) > 0.82 ? 1.0 : 0.05;
+
+  spacecraft.group.visible = journeyT > 0.01;
+
+  // Earth slow rotation & cloud drift
+  earthMesh.rotation.y += dt * 0.011;
+  earthCloudsMesh.rotation.y += dt * 0.016; // clouds drift independently
+  (EarthMaterial.uniforms.viewPos as any).value.copy(camera.position);
+  (EarthCloudsMaterial.uniforms.viewPos as any).value.copy(camera.position);
+  (atmosMat.uniforms.viewPos as any).value.copy(camera.position);
+
+  // Moon slow rotation & shader camera position
+  moonMesh.rotation.y += dt * 0.006;
+  (MoonMaterial.uniforms.viewPos as any).value.copy(camera.position);
 
   // Update glow view vectors
   (moonGlowMat.uniforms.viewVector as any).value.copy(camera.position);
