@@ -230,14 +230,8 @@ function hideLoading() {
   setTimeout(() => loadingOverlay.remove(), 800);
 }
 
-// ── Relief scale modes ─────────────────────────────────────────
-const RELIEF_MODES = [
-  { label: '⛰ Relief: 1× (True Scale)', factor: 1.0 },
-  { label: '⛰ Relief: 2× (Subtle)', factor: 2.0 },
-  { label: '⛰ Relief: 4× (Exag.)', factor: 4.0 },
-  { label: '⛰ Relief: Off (Sphere)', factor: 0.0 },
-];
-let currentReliefMode = 0; // Default: 1x (True Scientific Scale)
+// ── Fixed Relief Scale (2× Subtle Relief) ──────────────────────
+const FIXED_RELIEF_FACTOR = 2.0;
 
 // ── Custom Lunar Material (MeshStandardMaterial) ───────────────
 function createLunarMaterial(
@@ -320,7 +314,7 @@ function applyDisplacementToGeometry(
   const vertex = new THREE.Vector3();
   const normal = new THREE.Vector3();
 
-  const factor = RELIEF_MODES[currentReliefMode].factor;
+  const factor = FIXED_RELIEF_FACTOR;
 
   for (let i = 0; i < count; i++) {
     vertex.fromBufferAttribute(pos, i);
@@ -624,13 +618,10 @@ hud.innerHTML = `
     <div class="controls-group">
       <button id="btn-new-mission" title="Launch Mission Scenario Configuration &amp; Landing Site Selection">🚀 New Mission Analysis</button>
       <button id="btn-compare-sites" class="btn-highlight-compare" title="Open Candidate-Site Comparison Workspace (Side-by-side analysis &amp; ranking)">⚖️ Compare Sites</button>
-      <button id="btn-export-reports" title="Export Scientific Reports &amp; Reproducibility Artifacts (PDF, CSV, JSON)">📤 Export</button>
     </div>
     <div class="controls-divider"></div>
     <div class="controls-group">
-      <button id="btn-south-pole" title="Focus camera directly on Lunar South Pole &amp; Artemis Candidate Sites">🎯 South Pole</button>
-      <button id="btn-topo" class="active" title="Toggle 3D elevation relief scale">⛰ Relief: 1× (True Scale)</button>
-    </div>
+      <button id="btn-south-pole" title="Focus camera directly on Lunar South Pole &amp; Artemis Candidate Sites">🎯 South Pole</button>    </div>
     <div class="controls-divider"></div>
     <div class="controls-group">
       <button id="btn-auto" title="Toggle auto-rotation">⏸ Auto-Rotate</button>
@@ -663,13 +654,7 @@ createGeometryPanel({ sunLight, earthshineLight });
 missionWorkspace = new MissionWorkspace();
 document.getElementById('btn-new-mission')!.addEventListener('click', () => {
   missionWorkspace?.toggle();
-});
-document.getElementById('btn-export-reports')?.addEventListener('click', () => {
-  if (missionWorkspace) {
-    missionWorkspace.openExportModal();
-  }
-});
-
+});
 // ── Candidate Comparison Workspace (Phase 5) ───────────────────
 candidateComparisonWorkspace = new CandidateComparisonWorkspace();
 document.getElementById('btn-compare-sites')!.addEventListener('click', () => {
@@ -831,17 +816,7 @@ document.getElementById('btn-auto')!.addEventListener('click', () => {
   const btn = document.getElementById('btn-auto')!;
   btn.textContent = autoRotate ? '⏸ Auto-Rotate' : '▶ Auto-Rotate';
   btn.classList.toggle('active', autoRotate);
-});
-
-document.getElementById('btn-topo')!.addEventListener('click', () => {
-  currentReliefMode = (currentReliefMode + 1) % RELIEF_MODES.length;
-  const mode = RELIEF_MODES[currentReliefMode];
-  applyReliefFactor(mode.factor);
-  const btn = document.getElementById('btn-topo')!;
-  btn.textContent = mode.label;
-  btn.classList.toggle('active', mode.factor > 0);
-});
-
+});
 document.getElementById('btn-wire')!.addEventListener('click', () => {
   isWireframe = !isWireframe;
   if (moonMesh) {

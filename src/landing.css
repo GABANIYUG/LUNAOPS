@@ -1,20 +1,28 @@
 /* ==========================================================================
-   LUNAOPS — Cinematic Landing Page v2
-   Restrained, film-grade aesthetic. Nothing neon. Nothing cartoonish.
+   LUNAOPS — Cinematic Landing Page
+   Premium Smooth Glassmorphism Theme · SELENE LABS
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,300&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
 
 :root {
-  --black:     #00010a;
-  --cyan:      #38bdf8;
-  --cyan-dim:  #0ea5e9;
-  --white:     rgba(255, 255, 255, 0.96);
-  --dim:       rgba(185, 210, 240, 0.55);
-  --dimmer:    rgba(145, 175, 215, 0.38);
-  --font:      'Inter', system-ui, sans-serif;
-  --mono:      'JetBrains Mono', 'Fira Code', monospace;
-  --ease:      cubic-bezier(0.16, 1, 0.3, 1);
+  --black:          #03060B;
+  --glass-bg:       rgba(10, 18, 32, 0.65);
+  --glass-border:   rgba(120, 200, 255, 0.18);
+  --cyan:           #42DDF5;
+  --cyan-bright:    #42DDF5;
+  --cyan-dim:       #0ea5e9;
+  --soft-blue:      #78AEFF;
+  --white:          #EAF4FF;
+  --white-text:     #EAF4FF;
+  --dim:            #8498B5;
+  --dim-text:       #8498B5;
+  --dimmer:         rgba(132, 152, 181, 0.45);
+  --font:           'Inter', system-ui, -apple-system, sans-serif;
+  --mono:           'JetBrains Mono', 'Fira Code', monospace;
+  --font-mono:      'JetBrains Mono', 'Fira Code', monospace;
+  --ease:           cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-expo:      cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ── Reset ──────────────────────────────────────────────────── */
@@ -144,27 +152,31 @@ html, body {
   75% { background-position: 14%  2%; }
 }
 
-/* ── Letterbox bars (thin, cinematic) ──────────────────────── */
+/* ── Letterbox bars (cinematic glassmorphism) ──────────────── */
 .letterbox-top,
 .letterbox-bottom {
   position: absolute; left: 0; right: 0;
-  height: 4.5vh; background: #000;
-  z-index: 22; pointer-events: none;
+  height: 4.5vh;
+  background: var(--black);
+  z-index: 20;
+  pointer-events: none;
 }
 .letterbox-top    { top: 0; }
 .letterbox-bottom { bottom: 0; }
 
-/* ── Vignette — lighter, radial, not elliptical mud ──────────── */
+/* ── Vignette ───────────────────────────────────────────────── */
 /* NOTE: actual grade is handled in the GLSL shader pass */
 .vignette {
   position: absolute; inset: 0; z-index: 6; pointer-events: none;
   background: radial-gradient(circle at 58% 50%,
-    transparent 30%, rgba(0,2,8,0.20) 65%, rgba(0,1,5,0.55) 100%);
+    transparent 30%, rgba(3, 6, 11, 0.35) 65%, rgba(3, 6, 11, 0.75) 100%);
 }
 
 /* ── Main overlay ───────────────────────────────────────────── */
 #ui-overlay {
-  position: absolute; inset: 0; z-index: 10;
+  position: absolute;
+  inset: 0;
+  z-index: 10;
   pointer-events: none;
 }
 
@@ -185,28 +197,28 @@ html, body {
   will-change: opacity;
 }
 
-/* Subtle gradient backdrop — fades toward Moon/scene */
+/* Subtle glass gradient backdrop — fades toward Moon/scene */
 .left-panel::before {
   content: '';
   position: absolute; inset: 0;
   z-index: -1; pointer-events: none;
   background: linear-gradient(
     95deg,
-    rgba(1, 5, 14, 0.50) 0%,
-    rgba(2, 7, 18, 0.32) 45%,
-    rgba(2, 8, 20, 0.10) 75%,
+    rgba(10, 18, 32, 0.65) 0%,
+    rgba(10, 18, 32, 0.45) 45%,
+    rgba(10, 18, 32, 0.15) 75%,
     transparent 100%
   );
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   mask-image: linear-gradient(to right,
-    rgba(0,0,0,1) 0%, rgba(0,0,0,0.82) 55%, rgba(0,0,0,0) 100%);
+    rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 55%, rgba(0,0,0,0) 100%);
   -webkit-mask-image: linear-gradient(to right,
-    rgba(0,0,0,1) 0%, rgba(0,0,0,0.82) 55%, rgba(0,0,0,0) 100%);
+    rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 55%, rgba(0,0,0,0) 100%);
 }
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
   .left-panel::before {
-    background: linear-gradient(95deg, rgba(1,5,14,0.78) 0%, rgba(2,8,20,0.50) 60%, transparent 100%);
+    background: linear-gradient(95deg, rgba(10,18,32,0.85) 0%, rgba(10,18,32,0.55) 60%, transparent 100%);
   }
 }
 
@@ -239,8 +251,8 @@ html, body {
   font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--cyan);
-  opacity: 0.65;
+  color: var(--cyan-bright);
+  opacity: 0.85;
 }
 
 /* ── Hero Letters ───────────────────────────────────────────── */
@@ -267,9 +279,9 @@ html, body {
   transform: translateY(24px) scale(0.88);
   background: linear-gradient(160deg,
     #ffffff 0%,
-    rgba(215, 230, 255, 0.92) 45%,
-    rgba(100, 175, 255, 0.78) 80%,
-    rgba(56, 189, 248, 0.62) 100%);
+    rgba(234, 244, 255, 0.95) 45%,
+    rgba(120, 174, 255, 0.85) 75%,
+    rgba(66, 221, 245, 0.75) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -281,8 +293,8 @@ html, body {
   width: 0%;
   opacity: 0;
   margin-top: 0.55rem;
-  background: linear-gradient(90deg, var(--cyan) 0%, rgba(56,189,248,0.28) 80%, transparent 100%);
-  box-shadow: 0 0 7px rgba(56,189,248,0.32);
+  background: linear-gradient(90deg, var(--cyan-bright) 0%, rgba(66, 221, 245, 0.28) 80%, transparent 100%);
+  box-shadow: 0 0 8px rgba(66, 221, 245, 0.35);
   border-radius: 1px;
   will-change: width, opacity;
 }
@@ -293,9 +305,10 @@ html, body {
   font-weight: 300;
   line-height: 1.58;
   letter-spacing: 0.01em;
-  color: rgba(215, 235, 255, 0.90);
+  color: var(--white-text);
   margin-bottom: 1rem;
   will-change: opacity;
+  text-shadow: 0 0 16px rgba(66, 221, 245, 0.2);
 }
 
 /* ── Description ────────────────────────────────────────────── */
@@ -303,18 +316,19 @@ html, body {
   font-size: clamp(0.70rem, 1.00vw, 0.85rem);
   font-weight: 300;
   line-height: 1.78;
-  color: var(--dim);
+  color: var(--dim-text);
   max-width: 370px;
   margin-bottom: 2rem;
   will-change: opacity;
 }
 
-/* ── CTA — glass button, slow shine sweep ───────────────────── */
+/* ── Call to action: Enter Workstation ──────────────────────── */
 .panel-cta {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 1.1rem;
+  gap: 0.65rem;
+  margin-bottom: 2.2rem;
   opacity: 0;
   will-change: opacity, transform;
 }
@@ -323,96 +337,88 @@ html, body {
   pointer-events: auto;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.74rem 1.75rem;
-  background: rgba(255, 255, 255, 0.07);
-  color: rgba(225, 240, 255, 0.95);
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
+  gap: 0.65rem;
+  padding: 0.8rem 2.2rem;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.45) 0%, rgba(66, 221, 245, 0.7) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: #ffffff;
+  font-family: var(--font);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  border: 1px solid rgba(56, 189, 248, 0.28);
-  border-radius: 2px;
+  border: 1px solid var(--glass-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 16px;
   cursor: pointer;
   text-decoration: none;
   position: relative;
   overflow: hidden;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  transition: border-color 0.22s var(--ease), background 0.22s var(--ease), transform 0.16s var(--ease);
+  box-shadow: 0 0 24px rgba(66, 221, 245, 0.35), 0 8px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  transition: transform 0.22s var(--ease-expo), box-shadow 0.22s var(--ease-expo), background 0.22s var(--ease-expo);
 }
 
-/* Shine sweep animation */
 .btn-enter::before {
   content: '';
-  position: absolute;
-  top: 0; left: -75%;
-  width: 55%; height: 100%;
-  background: linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.10) 50%, transparent 100%);
-  transform: skewX(-18deg);
-  animation: shine-sweep 4.5s 1.5s ease-in-out infinite;
-}
-
-@keyframes shine-sweep {
-  0%, 100% { left: -75%; }
-  50%       { left: 120%; }
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 60%);
+  pointer-events: none;
 }
 
 .btn-enter::after {
   content: '→';
-  margin-left: 0.25em;
-  font-size: 0.88em;
-  transition: transform 0.16s var(--ease);
+  margin-left: 0.3em;
+  font-size: 0.95em;
+  transition: transform 0.2s var(--ease);
   display: inline-block;
-  opacity: 0.70;
+  opacity: 0.85;
 }
 
 .btn-enter:hover {
-  background: rgba(56, 189, 248, 0.10);
-  border-color: rgba(56, 189, 248, 0.52);
-  transform: translateY(-1px);
+  transform: translateY(-2px) scale(1.02);
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.6) 0%, rgba(66, 221, 245, 0.9) 100%);
+  box-shadow: 0 0 38px rgba(66, 221, 245, 0.55), 0 12px 28px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
-.btn-enter:hover::after { transform: translateX(3px); }
-.btn-enter:active { transform: translateY(0); }
-.btn-enter:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+.btn-enter:hover::after { transform: translateX(4px); }
+.btn-enter:active { transform: translateY(0) scale(1); }
+.btn-enter:focus-visible { outline: 2px solid var(--cyan-bright); outline-offset: 3px; }
 
 .cta-subtext {
   font-family: var(--mono);
-  font-size: 0.60rem;
-  color: var(--dimmer);
+  font-size: 0.58rem;
   letter-spacing: 0.08em;
+  color: var(--dim-text);
+  opacity: 0.75;
 }
-
 .cta-subtext kbd {
-  display: inline-block;
-  padding: 0.10rem 0.32rem;
-  font-size: 0.56rem;
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 2px;
-  color: var(--cyan);
+  background: rgba(120, 200, 255, 0.12);
+  border: 1px solid var(--glass-border);
+  border-radius: 4px;
+  padding: 0.12rem 0.35rem;
+  font-family: inherit;
+  font-size: 0.54rem;
+  color: var(--white-text);
 }
 
-/* ── Scroll cue ─────────────────────────────────────────────── */
+/* ── Initial scroll cue ─────────────────────────────────────── */
 .initial-scroll-cue {
   display: flex;
   align-items: center;
-  gap: 0.70rem;
-  margin-top: 1.6rem;
-  color: var(--dim);
+  gap: 0.65rem;
+  color: var(--dim-text);
   opacity: 0;
   animation: fade-up 0.8s 1.1s var(--ease) forwards;
   will-change: opacity, transform;
 }
 
 .scroll-mouse {
-  width: 14px; height: 22px;
-  border: 1px solid currentColor;
-  border-radius: 7px;
+  width: 16px; height: 24px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
   position: relative;
+  background: rgba(10, 18, 32, 0.4);
   flex-shrink: 0;
-  opacity: 0.55;
 }
 
 .scroll-mouse::after {
@@ -422,8 +428,9 @@ html, body {
   transform: translateX(-50%);
   width: 2px; height: 4px;
   border-radius: 1px;
-  background: currentColor;
-  animation: scroll-dot 2s ease-in-out infinite;
+  background: var(--cyan-bright);
+  box-shadow: 0 0 6px var(--cyan-bright);
+  animation: scroll-dot 1.9s ease-in-out infinite;
 }
 
 @keyframes scroll-dot {
@@ -437,27 +444,30 @@ html, body {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   line-height: 1;
-  opacity: 0.55;
+  opacity: 0.7;
 }
 
 /* ── Progress strip ─────────────────────────────────────────── */
 .progress-strip {
   position: absolute;
-  right: 1.1rem; top: 8vh; bottom: 8vh;
-  width: 1px;
-  background: rgba(255,255,255,0.05);
+  right: 1.4rem; top: 8vh; bottom: 8vh;
+  width: 2px;
+  background: rgba(120, 200, 255, 0.12);
   z-index: 12;
   pointer-events: none;
-  border-radius: 1px;
+  border-radius: 9999px;
   opacity: 0;
   animation: fade-in 0.6s 2.2s forwards;
 }
 
 .progress-strip-fill {
   position: absolute;
-  top: 0; left: 0; width: 100%; height: 0%;
-  background: rgba(56,189,248,0.55);
-  border-radius: 1px;
+  top: 0; left: 0; width: 100%;
+  height: 0%;
+  background: var(--cyan-bright);
+  border-radius: 9999px;
+  box-shadow: 0 0 8px var(--cyan-bright);
+  transition: height 0.06s linear;
   will-change: height;
 }
 
@@ -555,7 +565,7 @@ html, body {
 .status-check {
   width: 14px;
   height: 14px;
-  color: rgba(56, 189, 248, 0.80);
+  color: var(--cyan-bright);
   flex-shrink: 0;
 }
 
@@ -565,7 +575,7 @@ html, body {
   font-weight: 500;
   letter-spacing: 0.20em;
   text-transform: uppercase;
-  color: rgba(210, 228, 248, 0.82);
+  color: var(--white-text);
 }
 
 .status-sub {
@@ -573,7 +583,8 @@ html, body {
   font-size: clamp(0.50rem, 0.68vw, 0.58rem);
   font-weight: 300;
   letter-spacing: 0.12em;
-  color: rgba(155, 185, 220, 0.42);
+  color: var(--dim-text);
+  opacity: 0.7;
 }
 
 /* Separator dot between text and sub */
@@ -595,22 +606,26 @@ html, body {
   font-size: 0.54rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--dimmer);
+  color: var(--dim-text);
   text-decoration: none;
-  padding: 0.4rem 0.8rem;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 2px;
+  padding: 0.42rem 0.85rem;
+  border: 1px solid var(--glass-border);
+  background: rgba(10, 18, 32, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 8px;
   pointer-events: auto;
   opacity: 0;
   animation: fade-in 1.0s 2.0s forwards;
-  transition: color 0.18s ease, border-color 0.18s ease;
+  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 .skip-to-workstation:hover {
-  color: rgba(200,225,248,0.75);
-  border-color: rgba(255,255,255,0.20);
+  color: var(--white-text);
+  border-color: rgba(66, 221, 245, 0.4);
+  background: rgba(66, 221, 245, 0.12);
 }
 .skip-to-workstation:focus-visible {
-  outline: 2px solid var(--cyan);
+  outline: 2px solid var(--cyan-bright);
   outline-offset: 2px;
 }
 
@@ -640,15 +655,15 @@ html, body {
 
   .left-panel::before {
     background: linear-gradient(180deg,
-      rgba(1, 5, 14, 0.62) 0%,
-      rgba(2, 7, 18, 0.38) 65%,
+      rgba(10, 18, 32, 0.75) 0%,
+      rgba(10, 18, 32, 0.5) 65%,
       transparent 100%);
     mask-image: linear-gradient(to bottom,
       rgba(0,0,0,1) 0%, rgba(0,0,0,0.78) 72%, rgba(0,0,0,0) 100%);
     -webkit-mask-image: linear-gradient(to bottom,
       rgba(0,0,0,1) 0%, rgba(0,0,0,0.78) 72%, rgba(0,0,0,0) 100%);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
   }
 
   .hero-letter {
@@ -703,7 +718,7 @@ html, body {
   display: none;
   position: absolute; inset: 0; z-index: 50;
   background: var(--black);
-  color: var(--dim);
+  color: var(--dim-text);
   font-family: var(--mono);
   font-size: 0.78rem;
   align-items: center;
