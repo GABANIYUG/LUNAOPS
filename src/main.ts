@@ -348,7 +348,7 @@ function applyDisplacementToGeometry(
   geometry.computeBoundingSphere();
 }
 
-function applyReliefFactor(factor: number) {
+export function applyReliefFactor(factor: number) {
   if (!moonMesh || !originalPositions || !displacementData) return;
   const pos = moonMesh.geometry.attributes.position;
   const count = pos.count;
