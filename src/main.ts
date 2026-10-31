@@ -34,7 +34,6 @@ let missionWorkspace: MissionWorkspace | null = null;
 let candidateComparisonWorkspace: CandidateComparisonWorkspace | null = null;
 let targetSiteMarker: THREE.Group | null = null;
 let autoRotate = true;
-let isWireframe = false;
 let sunAngle = 0.6;                          // Radians, animatable
 let animateSun = false;
 let isSouthPoleView = false;
@@ -624,9 +623,7 @@ hud.innerHTML = `
       <button id="btn-south-pole" title="Focus camera directly on Lunar South Pole &amp; Artemis Candidate Sites">🎯 South Pole</button>    </div>
     <div class="controls-divider"></div>
     <div class="controls-group">
-      <button id="btn-auto" title="Toggle auto-rotation">⏸ Auto-Rotate</button>
-      <button id="btn-wire" title="Toggle wireframe overlay">◇ Wireframe</button>
-      <button id="btn-sun" title="Animate solar terminator position">☀ Sun Cycle</button>
+      <button id="btn-auto" title="Toggle auto-rotation">⏸ Auto-Rotate</button>      <button id="btn-sun" title="Animate solar terminator position">☀ Sun Cycle</button>
       <button id="btn-reset" title="Reset camera to default view">⟲ Reset</button>
     </div>
   </div>
@@ -817,14 +814,6 @@ document.getElementById('btn-auto')!.addEventListener('click', () => {
   btn.textContent = autoRotate ? '⏸ Auto-Rotate' : '▶ Auto-Rotate';
   btn.classList.toggle('active', autoRotate);
 });
-document.getElementById('btn-wire')!.addEventListener('click', () => {
-  isWireframe = !isWireframe;
-  if (moonMesh) {
-    (moonMesh.material as THREE.MeshStandardMaterial).wireframe = isWireframe;
-  }
-  const btn = document.getElementById('btn-wire')!;
-  btn.classList.toggle('active', isWireframe);
-});
 
 document.getElementById('btn-sun')!.addEventListener('click', () => {
   animateSun = !animateSun;
