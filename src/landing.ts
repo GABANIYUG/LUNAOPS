@@ -22,23 +22,23 @@ import './landing.css';
 //  SHOTS CONFIG — all timings and captions in one place
 // ═══════════════════════════════════════════════════════════════════
 const SHOTS = {
-  scrollVH:          750,      // total scroll distance in vh units
-  autoSpeed:         0.00065,  // journey units/sec slow drift
-  springDamping:     8.5,      // critically-damped spring coefficient
-  springStiffness:   60.0,
+  scrollVH: 750,      // total scroll distance in vh units
+  autoSpeed: 0.00065,  // journey units/sec slow drift
+  springDamping: 8.5,      // critically-damped spring coefficient
+  springStiffness: 60.0,
 
   // Shot boundaries [0..1]
-  s1_earth:          0.00,     // Earth opening wide
-  s2_departure:      0.20,     // Trans-lunar departure
-  s3_orbit:          0.52,     // Lunar orbit hero — full Moon
-  s4_separation:     0.64,     // Lander undocks, pole approach
-  s5_transitionDip:  0.72,     // Scene swap inside exposure dip
-  s5_surfaceIn:      0.76,     // Surface fades in
-  s6_establishing:   0.78,     // Wide establishing, lander tiny dot
-  s7_descent:        0.84,     // Powered descent, follow shot
-  s7_legsOut:        0.92,     // Legs deploy
-  s8_touchdown:      0.96,     // Contact + settle
-  s8_hold:           0.99,     // Slow push-in, status line
+  s1_earth: 0.00,     // Earth opening wide
+  s2_departure: 0.20,     // Trans-lunar departure
+  s3_orbit: 0.52,     // Lunar orbit hero — full Moon
+  s4_separation: 0.64,     // Lander undocks, pole approach
+  s5_transitionDip: 0.72,     // Scene swap inside exposure dip
+  s5_surfaceIn: 0.76,     // Surface fades in
+  s6_establishing: 0.78,     // Wide establishing, lander tiny dot
+  s7_descent: 0.84,     // Powered descent, follow shot
+  s7_legsOut: 0.92,     // Legs deploy
+  s8_touchdown: 0.96,     // Contact + settle
+  s8_hold: 0.99,     // Slow push-in, status line
 
   // Captions
   captions: [
@@ -50,14 +50,14 @@ const SHOTS = {
   ] as Array<{ t: number; endT: number; text: string }>,
 
   // Moon-to-surface crossfade timing
-  moonFadeStart:     0.72,
-  moonFadeEnd:       0.76,
+  moonFadeStart: 0.72,
+  moonFadeEnd: 0.76,
 
   // Lander
-  landerStartT:      0.72,     // lander becomes active
-  landerDescentEnd:  0.96,     // touchdown
-  touchdownT:        0.96,
-  statusLineT:       0.985,
+  landerStartT: 0.72,     // lander becomes active
+  landerDescentEnd: 0.96,     // touchdown
+  touchdownT: 0.96,
+  statusLineT: 0.985,
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -86,7 +86,7 @@ canvas.id = 'scene-canvas';
 root.appendChild(canvas);
 
 const isMobile = window.innerWidth < 768;
-const MAX_DPR  = isMobile ? 1.25 : 1.5;
+const MAX_DPR = isMobile ? 1.25 : 1.5;
 
 const renderer = new THREE.WebGLRenderer({
   canvas, antialias: true, alpha: false, powerPreference: 'high-performance',
@@ -127,15 +127,15 @@ composer.addPass(bloom);
 // Combined grade shader: split-tone + light vignette + fine grain + tiny chroma AB
 const GradeShader = {
   uniforms: {
-    tDiffuse:    { value: null },
-    time:        { value: 0 },
-    grain:       { value: 0.018 },
-    exposure:    { value: 1.0 },
+    tDiffuse: { value: null },
+    time: { value: 0 },
+    grain: { value: 0.018 },
+    exposure: { value: 1.0 },
     // Vignette params — lighter than before
     vigStrength: { value: 0.55 },
     // Split tone: cool shadows, neutral-warm highlights
-    shadowTint:  { value: new THREE.Vector3(0.92, 0.96, 1.06) },
-    hlTint:      { value: new THREE.Vector3(1.04, 1.01, 0.97) },
+    shadowTint: { value: new THREE.Vector3(0.92, 0.96, 1.06) },
+    hlTint: { value: new THREE.Vector3(1.04, 1.01, 0.97) },
   },
   vertexShader: `
     varying vec2 vUv;
@@ -190,29 +190,29 @@ composer.addPass(gradePass);
 (function buildStarfield() {
   const starRng = makeRNG(0xCAFEBABE);
   const layers = [
-    { count: 2000, rMin: 80,  rMax: 150, size: 0.05, opacity: 0.55 },
+    { count: 2000, rMin: 80, rMax: 150, size: 0.05, opacity: 0.55 },
     { count: 3500, rMin: 150, rMax: 280, size: 0.08, opacity: 0.75 },
-    { count: 600,  rMin: 50,  rMax: 80,  size: 0.15, opacity: 0.95 },
+    { count: 600, rMin: 50, rMax: 80, size: 0.15, opacity: 0.95 },
   ];
   layers.forEach(({ count, rMin, rMax, size, opacity }) => {
     const pos = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
       const theta = starRng() * Math.PI * 2;
-      const phi   = Math.acos(2 * starRng() - 1);
-      const r     = rMin + starRng() * (rMax - rMin);
-      pos[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
+      const phi = Math.acos(2 * starRng() - 1);
+      const r = rMin + starRng() * (rMax - rMin);
+      pos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
       pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       pos[i * 3 + 2] = r * Math.cos(phi);
       // Faint blue-white to pure white
       const tc = starRng();
-      col[i * 3]     = 0.85 + tc * 0.15;
+      col[i * 3] = 0.85 + tc * 0.15;
       col[i * 3 + 1] = 0.88 + tc * 0.12;
       col[i * 3 + 2] = 1.0;
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute('color',    new THREE.BufferAttribute(col, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     const mat = new THREE.PointsMaterial({
       size, vertexColors: true, transparent: true, opacity,
       sizeAttenuation: true,
@@ -238,12 +238,12 @@ scene.add(ambientLight);
 // ═══════════════════════════════════════════════════════════════════
 const texLoader = new THREE.TextureLoader();
 
-const earthDayMap    = texLoader.load('/generated/earth/earth_day_2k.webp',   t => { t.colorSpace = THREE.SRGBColorSpace; });
-const earthNightMap  = texLoader.load('/generated/earth/earth_night_2k.webp', t => { t.colorSpace = THREE.SRGBColorSpace; });
-const earthSpecMap   = texLoader.load('/generated/earth/earth_specular_2k.webp');
-const earthCloudsMap = texLoader.load('/generated/earth/earth_clouds_2k.webp',t => { t.colorSpace = THREE.SRGBColorSpace; });
-const moonColorMap   = texLoader.load('/generated/lroc_color_2k.jpg',         t => { t.colorSpace = THREE.SRGBColorSpace; });
-const moonNormalMap  = texLoader.load('/generated/ldem_normal_map_half.png',   t => { t.colorSpace = THREE.NoColorSpace; });
+const earthDayMap = texLoader.load('/generated/earth/earth_day_2k.webp', t => { t.colorSpace = THREE.SRGBColorSpace; });
+const earthNightMap = texLoader.load('/generated/earth/earth_night_2k.webp', t => { t.colorSpace = THREE.SRGBColorSpace; });
+const earthSpecMap = texLoader.load('/generated/earth/earth_specular_2k.webp');
+const earthCloudsMap = texLoader.load('/generated/earth/earth_clouds_2k.webp', t => { t.colorSpace = THREE.SRGBColorSpace; });
+const moonColorMap = texLoader.load('/generated/lroc_color_2k.jpg', t => { t.colorSpace = THREE.SRGBColorSpace; });
+const moonNormalMap = texLoader.load('/generated/ldem_normal_map_half.png', t => { t.colorSpace = THREE.NoColorSpace; });
 
 // ═══════════════════════════════════════════════════════════════════
 //  EARTH (unchanged photorealistic model — shots 1-2)
@@ -256,11 +256,11 @@ scene.add(earthGroup);
 const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, 128, 64);
 const EarthMaterial = new THREE.ShaderMaterial({
   uniforms: {
-    dayTexture:      { value: earthDayMap },
-    nightTexture:    { value: earthNightMap },
+    dayTexture: { value: earthDayMap },
+    nightTexture: { value: earthNightMap },
     specularTexture: { value: earthSpecMap },
-    sunDir:          { value: SUN_DIR.clone() },
-    viewPos:         { value: camera.position },
+    sunDir: { value: SUN_DIR.clone() },
+    viewPos: { value: camera.position },
   },
   vertexShader: `
     varying vec3 vNormal; varying vec3 vWorldPos; varying vec2 vUv; varying vec3 vViewVector;
@@ -302,8 +302,8 @@ const EarthCloudsMaterial = new THREE.ShaderMaterial({
   transparent: true, depthWrite: false,
   uniforms: {
     cloudsTexture: { value: earthCloudsMap },
-    sunDir:        { value: SUN_DIR.clone() },
-    viewPos:       { value: camera.position },
+    sunDir: { value: SUN_DIR.clone() },
+    viewPos: { value: camera.position },
   },
   vertexShader: `
     varying vec3 vNormal; varying vec2 vUv; varying vec3 vViewVector;
@@ -339,7 +339,7 @@ const atmosMat = new THREE.ShaderMaterial({
   transparent: true, side: THREE.FrontSide, depthWrite: false,
   blending: THREE.AdditiveBlending,
   uniforms: {
-    sunDir:  { value: SUN_DIR.clone() },
+    sunDir: { value: SUN_DIR.clone() },
     viewPos: { value: camera.position },
   },
   vertexShader: `
@@ -378,12 +378,12 @@ scene.add(moonGroup);
 const moonGeo = new THREE.SphereGeometry(MOON_RADIUS, 128, 64);
 const MoonMaterial = new THREE.ShaderMaterial({
   uniforms: {
-    colorTexture:  { value: moonColorMap },
+    colorTexture: { value: moonColorMap },
     normalTexture: { value: moonNormalMap },
-    sunDir:        { value: SUN_DIR.clone() },
-    viewPos:       { value: camera.position },
-    opacity:       { value: 1.0 },
-    earthshine:    { value: 0.022 },
+    sunDir: { value: SUN_DIR.clone() },
+    viewPos: { value: camera.position },
+    opacity: { value: 1.0 },
+    earthshine: { value: 0.022 },
   },
   transparent: true,
   vertexShader: `
@@ -454,8 +454,8 @@ moonGroup.add(new THREE.Mesh(moonGlowGeo, moonGlowMat));
 //  ORBITER SPACECRAFT (shots 1-4)
 // ═══════════════════════════════════════════════════════════════════
 const CRAFT_BEZIER_START = new THREE.Vector3(26, -2, -8);
-const CRAFT_BEZIER_CTRL  = new THREE.Vector3(12, 6, -14);
-const CRAFT_BEZIER_END   = new THREE.Vector3(6.5, 2.0, -25);
+const CRAFT_BEZIER_CTRL = new THREE.Vector3(12, 6, -14);
+const CRAFT_BEZIER_END = new THREE.Vector3(6.5, 2.0, -25);
 
 interface SpacecraftModel {
   group: THREE.Group;
@@ -463,71 +463,244 @@ interface SpacecraftModel {
   beaconMat: THREE.MeshBasicMaterial;
 }
 
+function createSolarPanelTexture(): THREE.CanvasTexture {
+  const cvs = document.createElement('canvas');
+  cvs.width = 256;
+  cvs.height = 128;
+  const ctx = cvs.getContext('2d')!;
+
+  ctx.fillStyle = '#081426';
+  ctx.fillRect(0, 0, 256, 128);
+
+  const cols = 5;
+  const rows = 3;
+  const pad = 4;
+  const w = (256 - pad * (cols + 1)) / cols;
+  const h = (128 - pad * (rows + 1)) / rows;
+
+  for (let c = 0; c < cols; c++) {
+    for (let ro = 0; ro < rows; ro++) {
+      const x = pad + c * (w + pad);
+      const y = pad + ro * (h + pad);
+
+      const grad = ctx.createLinearGradient(x, y, x + w, y + h);
+      grad.addColorStop(0, '#2b6cb0');
+      grad.addColorStop(0.4, '#1e4e8c');
+      grad.addColorStop(1, '#133360');
+      ctx.fillStyle = grad;
+      ctx.fillRect(x, y, w, h);
+
+      ctx.strokeStyle = 'rgba(125, 211, 252, 0.7)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, y + h * 0.5);
+      ctx.lineTo(x + w, y + h * 0.5);
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(125, 211, 252, 0.4)';
+      ctx.beginPath();
+      ctx.moveTo(x + w * 0.33, y);
+      ctx.lineTo(x + w * 0.33, y + h);
+      ctx.moveTo(x + w * 0.67, y);
+      ctx.lineTo(x + w * 0.67, y + h);
+      ctx.stroke();
+    }
+  }
+
+  const tex = new THREE.CanvasTexture(cvs);
+  tex.wrapS = THREE.ClampToEdgeWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  return tex;
+}
+
 function createOrbiter(): SpacecraftModel {
-  // Scale: roughly 12m long, visible at arms-length scale
   const r = new THREE.Group();
 
-  const hullMat = new THREE.MeshStandardMaterial({ color: 0xedf2f8, metalness: 0.65, roughness: 0.30 });
-  const goldMat  = new THREE.MeshStandardMaterial({ color: 0xcf9e2a, metalness: 0.92, roughness: 0.18 });
-  const darkMat  = new THREE.MeshStandardMaterial({ color: 0x181c22, metalness: 0.88, roughness: 0.42, side: THREE.DoubleSide });
-  const solarMat = new THREE.MeshStandardMaterial({ color: 0x071528, metalness: 0.90, roughness: 0.12 });
-  const dishMat  = new THREE.MeshStandardMaterial({ color: 0xd8dfe8, metalness: 0.88, roughness: 0.28, side: THREE.DoubleSide });
+  const hullMat = new THREE.MeshStandardMaterial({
+    color: 0xf0f5fc,
+    metalness: 0.60,
+    roughness: 0.32,
+    emissive: 0x1b2838,
+    emissiveIntensity: 0.35,
+  });
 
-  // Bus
-  r.add(Object.assign(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.36, 0.85, 8), hullMat)));
-  r.add(Object.assign(new THREE.Mesh(new THREE.CylinderGeometry(0.362, 0.362, 0.38, 8), goldMat)));
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: 0xf5a21b,
+    metalness: 0.55,
+    roughness: 0.35,
+    emissive: 0x452203,
+    emissiveIntensity: 0.60,
+    side: THREE.DoubleSide,
+  });
 
-  // Capsule
-  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.34, 0.44, 8), hullMat);
-  cap.position.y = 0.64; r.add(cap);
+  const strutMat = new THREE.MeshStandardMaterial({
+    color: 0xd6e3f2,
+    metalness: 0.70,
+    roughness: 0.28,
+    emissive: 0x223247,
+    emissiveIntensity: 0.60,
+    side: THREE.DoubleSide,
+  });
 
-  // Docking ring
-  const dr = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.022, 8, 20), darkMat);
-  dr.rotation.x = Math.PI / 2; dr.position.y = 0.87; r.add(dr);
+  const darkMat = new THREE.MeshStandardMaterial({
+    color: 0x242d38,
+    metalness: 0.80,
+    roughness: 0.40,
+    emissive: 0x0f151c,
+    emissiveIntensity: 0.35,
+    side: THREE.DoubleSide,
+  });
 
-  // Engine bell
+  const solarTex = createSolarPanelTexture();
+  const solarMat = new THREE.MeshStandardMaterial({
+    map: solarTex,
+    color: 0x60a5fa,
+    emissive: 0x1e40af,
+    emissiveMap: solarTex,
+    emissiveIntensity: 0.85,
+    metalness: 0.30,
+    roughness: 0.25,
+    side: THREE.DoubleSide,
+  });
+
+  const dishMat = new THREE.MeshStandardMaterial({
+    color: 0xe2ebf5,
+    metalness: 0.85,
+    roughness: 0.25,
+    emissive: 0x1b2738,
+    emissiveIntensity: 0.40,
+    side: THREE.DoubleSide,
+  });
+
+  r.add(Object.assign(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.36, 0.85, 12), hullMat)));
+  r.add(Object.assign(new THREE.Mesh(new THREE.CylinderGeometry(0.364, 0.364, 0.38, 12), goldMat)));
+
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.34, 0.44, 12), hullMat);
+  cap.position.y = 0.64;
+  r.add(cap);
+
+  const dr = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.022, 8, 20), strutMat);
+  dr.rotation.x = Math.PI / 2;
+  dr.position.y = 0.87;
+  r.add(dr);
+
   const eng = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.09, 0.30, 16, 1, true), darkMat);
-  eng.position.y = -0.58; r.add(eng);
+  eng.position.y = -0.58;
+  r.add(eng);
 
-  // Ion thruster — faint, small, not saturated blue
   const thrusterMat = new THREE.MeshBasicMaterial({
-    color: 0x9dd0ef, transparent: true, opacity: 0.30,
-    blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false,
+    color: 0x9dd0ef,
+    transparent: true,
+    opacity: 0.30,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+    depthWrite: false,
   });
   const thrust = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.32, 12, 1, true), thrusterMat);
-  thrust.position.y = -0.76; thrust.rotation.x = Math.PI; r.add(thrust);
+  thrust.position.y = -0.76;
+  thrust.rotation.x = Math.PI;
+  r.add(thrust);
 
-  // Solar wings
-  [-1, 1].forEach(side => {
-    const wg = new THREE.Group();
-    wg.position.set(side * 0.44, 0, 0);
-    const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.28, 8), darkMat);
-    boom.rotation.z = Math.PI / 2; boom.position.x = side * 0.14; wg.add(boom);
+  // Both Wing Arrays with visible connecting structural booms & articulate solar panels
+  [-1, 1].forEach((side) => {
+    // 1. Hull mounting bracket / gimbal collar attached directly to the hull
+    const mountCollar = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.09, 12), strutMat);
+    mountCollar.rotation.z = Math.PI / 2;
+    mountCollar.position.set(side * 0.35, 0, 0);
+    r.add(mountCollar);
+
+    const mountRing = new THREE.Mesh(new THREE.TorusGeometry(0.068, 0.016, 8, 16), goldMat);
+    mountRing.rotation.y = Math.PI / 2;
+    mountRing.position.set(side * 0.37, 0, 0);
+    r.add(mountRing);
+
+    // 2. Primary structural boom bridging continuously from the hull to the wing array
+    const boomLength = 0.38;
+    const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, boomLength, 12), strutMat);
+    boom.rotation.z = Math.PI / 2;
+    boom.position.set(side * (0.35 + boomLength / 2), 0, 0);
+    r.add(boom);
+
+    // Reinforcing gold truss strut
+    const subStrut = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, boomLength * 0.95, 8), goldMat);
+    subStrut.rotation.z = Math.PI / 2;
+    subStrut.position.set(side * (0.35 + boomLength / 2), 0.035, 0);
+    r.add(subStrut);
+
+    // 3. Wing root gimbal yoke
+    const wingRootX = side * (0.35 + boomLength);
+    const yoke = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.08, 0.09), goldMat);
+    yoke.position.set(wingRootX, 0, 0);
+    r.add(yoke);
+
+    const yokePivot = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.09, 8), strutMat);
+    yokePivot.position.set(wingRootX, 0, 0);
+    r.add(yokePivot);
+
+    // 4. Multi-segment Solar Panels (3 panels per wing)
+    const panelWidth = 0.50;
+    const panelDepth = 0.36;
+    const panelGap = 0.05;
+
     for (let p = 0; p < 3; p++) {
-      const pg = new THREE.Group(); pg.position.x = side * (0.34 + p * 0.52);
-      pg.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.47, 0.013, 0.31), goldMat)));
-      pg.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.015, 0.28), solarMat)));
-      wg.add(pg);
+      const panelCenterX = wingRootX + side * (0.05 + panelWidth / 2 + p * (panelWidth + panelGap));
+      const pg = new THREE.Group();
+      pg.position.set(panelCenterX, 0, 0);
+
+      // Gold Kapton MLI thermal substrate & perimeter frame
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(panelWidth, 0.015, panelDepth), goldMat);
+      pg.add(frame);
+
+      // Photovoltaic cell face (visible on both sides)
+      const cells = new THREE.Mesh(new THREE.BoxGeometry(panelWidth - 0.025, 0.020, panelDepth - 0.025), solarMat);
+      pg.add(cells);
+
+      // Silver structural edge ribs
+      const rib = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.022, panelDepth + 0.008), strutMat);
+      rib.position.set(side * (panelWidth / 2), 0, 0);
+      pg.add(rib);
+
+      r.add(pg);
+
+      // Inter-panel hinge connectors
+      if (p < 2) {
+        const hingeX = panelCenterX + side * (panelWidth / 2 + panelGap / 2);
+        const hinge = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.06, 8), strutMat);
+        hinge.rotation.x = Math.PI / 2;
+        hinge.position.set(hingeX, 0, 0);
+        r.add(hinge);
+      }
     }
-    r.add(wg);
   });
 
-  // Dish
   const dg = new THREE.Group();
-  dg.position.set(0.30, 0.20, 0.30); dg.rotation.set(-0.55, 0.65, 0);
+  dg.position.set(0.30, 0.20, 0.30);
+  dg.rotation.set(-0.55, 0.65, 0);
   dg.add(new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.42), dishMat));
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.20, 6), darkMat);
-  mast.position.z = 0.10; mast.rotation.x = Math.PI / 2; dg.add(mast);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.20, 6), strutMat);
+  mast.position.z = 0.10;
+  mast.rotation.x = Math.PI / 2;
+  dg.add(mast);
   r.add(dg);
 
-  // Strobe (tiny, parented to root, not a separate scene object)
   const beaconMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.0 });
-  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 6), beaconMat);
-  beacon.position.y = 0.93; r.add(beacon);
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), beaconMat);
+  beacon.position.y = 0.93;
+  r.add(beacon);
 
   const aligned = new THREE.Group();
   r.rotation.x = Math.PI / 2;
   aligned.add(r);
+
+  // Dedicated fill lights parented to the spacecraft so wings and connectors are always bright and legible
+  const craftFillLight = new THREE.DirectionalLight(0x78aeff, 1.4);
+  craftFillLight.position.set(-8, 6, -6);
+  aligned.add(craftFillLight);
+
+  const craftBackFill = new THREE.DirectionalLight(0x38bdf8, 1.0);
+  craftBackFill.position.set(6, -6, 5);
+  aligned.add(craftBackFill);
+
   return { group: aligned, thrusterMat, beaconMat };
 }
 
@@ -560,31 +733,31 @@ interface CraterStamp {
 const CRATER_STAMPS: CraterStamp[] = [
   // Large size class (radius 20m - 34m, depth 5m - 9m)
   { x: -38, z: -44, radius: 30, depth: 7.8, rimHeight: 2.4, rimWidth: 6.5, ejectaRadius: 48, softness: 0.25 },
-  { x: 50,  z: 34,  radius: 34, depth: 8.8, rimHeight: 2.8, rimWidth: 7.2, ejectaRadius: 52, softness: 0.35 },
-  { x: -46, z: 30,  radius: 24, depth: 5.8, rimHeight: 1.9, rimWidth: 5.4, ejectaRadius: 40, softness: 0.40 },
+  { x: 50, z: 34, radius: 34, depth: 8.8, rimHeight: 2.8, rimWidth: 7.2, ejectaRadius: 52, softness: 0.35 },
+  { x: -46, z: 30, radius: 24, depth: 5.8, rimHeight: 1.9, rimWidth: 5.4, ejectaRadius: 40, softness: 0.40 },
 
   // Medium size class (radius 7.5m - 14m, depth 1.8m - 3.4m)
-  { x: -18, z: 20,  radius: 12.0, depth: 2.8, rimHeight: 1.00, rimWidth: 3.0, ejectaRadius: 21, softness: 0.20 },
-  { x: 24,  z: -16, radius: 13.5, depth: 3.2, rimHeight: 1.15, rimWidth: 3.4, ejectaRadius: 23, softness: 0.30 },
-  { x: 14,  z: 28,  radius: 9.5,  depth: 2.3, rimHeight: 0.85, rimWidth: 2.5, ejectaRadius: 17, softness: 0.15 },
-  { x: -26, z: -14, radius: 8.8,  depth: 2.1, rimHeight: 0.78, rimWidth: 2.3, ejectaRadius: 16, softness: 0.45 },
-  { x: 36,  z: -34, radius: 14.5, depth: 3.5, rimHeight: 1.30, rimWidth: 3.6, ejectaRadius: 25, softness: 0.25 },
+  { x: -18, z: 20, radius: 12.0, depth: 2.8, rimHeight: 1.00, rimWidth: 3.0, ejectaRadius: 21, softness: 0.20 },
+  { x: 24, z: -16, radius: 13.5, depth: 3.2, rimHeight: 1.15, rimWidth: 3.4, ejectaRadius: 23, softness: 0.30 },
+  { x: 14, z: 28, radius: 9.5, depth: 2.3, rimHeight: 0.85, rimWidth: 2.5, ejectaRadius: 17, softness: 0.15 },
+  { x: -26, z: -14, radius: 8.8, depth: 2.1, rimHeight: 0.78, rimWidth: 2.3, ejectaRadius: 16, softness: 0.45 },
+  { x: 36, z: -34, radius: 14.5, depth: 3.5, rimHeight: 1.30, rimWidth: 3.6, ejectaRadius: 25, softness: 0.25 },
   { x: -10, z: -28, radius: 10.5, depth: 2.5, rimHeight: 0.90, rimWidth: 2.7, ejectaRadius: 19, softness: 0.30 },
-  { x: 30,  z: 14,  radius: 8.0,  depth: 1.9, rimHeight: 0.70, rimWidth: 2.1, ejectaRadius: 15, softness: 0.35 },
+  { x: 30, z: 14, radius: 8.0, depth: 1.9, rimHeight: 0.70, rimWidth: 2.1, ejectaRadius: 15, softness: 0.35 },
 
   // Small size class (radius 2.2m - 5.0m, depth 0.5m - 1.2m)
-  { x: -6.2, z: 9.2,  radius: 3.4, depth: 0.80, rimHeight: 0.30, rimWidth: 0.95, ejectaRadius: 7.0, softness: 0.15 },
-  { x: 8.2,  z: -7.5, radius: 4.2, depth: 0.98, rimHeight: 0.36, rimWidth: 1.15, ejectaRadius: 8.5, softness: 0.10 },
-  { x: 9.5,  z: 10.5, radius: 3.0, depth: 0.70, rimHeight: 0.26, rimWidth: 0.85, ejectaRadius: 6.0, softness: 0.20 },
-  { x: -10.5,z: -8.5, radius: 3.8, depth: 0.88, rimHeight: 0.32, rimWidth: 1.05, ejectaRadius: 7.5, softness: 0.30 },
+  { x: -6.2, z: 9.2, radius: 3.4, depth: 0.80, rimHeight: 0.30, rimWidth: 0.95, ejectaRadius: 7.0, softness: 0.15 },
+  { x: 8.2, z: -7.5, radius: 4.2, depth: 0.98, rimHeight: 0.36, rimWidth: 1.15, ejectaRadius: 8.5, softness: 0.10 },
+  { x: 9.5, z: 10.5, radius: 3.0, depth: 0.70, rimHeight: 0.26, rimWidth: 0.85, ejectaRadius: 6.0, softness: 0.20 },
+  { x: -10.5, z: -8.5, radius: 3.8, depth: 0.88, rimHeight: 0.32, rimWidth: 1.05, ejectaRadius: 7.5, softness: 0.30 },
   { x: 16.0, z: -4.8, radius: 2.6, depth: 0.60, rimHeight: 0.24, rimWidth: 0.75, ejectaRadius: 5.4, softness: 0.15 },
-  { x: -4.8, z:-16.5, radius: 5.0, depth: 1.15, rimHeight: 0.42, rimWidth: 1.35, ejectaRadius: 9.8, softness: 0.25 },
-  { x: -14.0,z: 6.2,  radius: 3.2, depth: 0.75, rimHeight: 0.28, rimWidth: 0.88, ejectaRadius: 6.5, softness: 0.20 },
-  { x: 6.5,  z: 18.2, radius: 4.8, depth: 1.10, rimHeight: 0.40, rimWidth: 1.25, ejectaRadius: 9.0, softness: 0.35 },
-  { x: -20.5,z: -4.2, radius: 2.4, depth: 0.55, rimHeight: 0.20, rimWidth: 0.65, ejectaRadius: 4.8, softness: 0.10 },
+  { x: -4.8, z: -16.5, radius: 5.0, depth: 1.15, rimHeight: 0.42, rimWidth: 1.35, ejectaRadius: 9.8, softness: 0.25 },
+  { x: -14.0, z: 6.2, radius: 3.2, depth: 0.75, rimHeight: 0.28, rimWidth: 0.88, ejectaRadius: 6.5, softness: 0.20 },
+  { x: 6.5, z: 18.2, radius: 4.8, depth: 1.10, rimHeight: 0.40, rimWidth: 1.25, ejectaRadius: 9.0, softness: 0.35 },
+  { x: -20.5, z: -4.2, radius: 2.4, depth: 0.55, rimHeight: 0.20, rimWidth: 0.65, ejectaRadius: 4.8, softness: 0.10 },
   { x: 20.0, z: 19.5, radius: 4.0, depth: 0.92, rimHeight: 0.34, rimWidth: 1.05, ejectaRadius: 8.0, softness: 0.20 },
   { x: -2.2, z: 13.5, radius: 2.8, depth: 0.65, rimHeight: 0.24, rimWidth: 0.75, ejectaRadius: 5.6, softness: 0.15 },
-  { x: 12.5, z:-20.5, radius: 3.6, depth: 0.84, rimHeight: 0.30, rimWidth: 0.95, ejectaRadius: 7.2, softness: 0.25 },
+  { x: 12.5, z: -20.5, radius: 3.6, depth: 0.84, rimHeight: 0.30, rimWidth: 0.95, ejectaRadius: 7.2, softness: 0.25 },
 ];
 
 function terrainHeight(x: number, z: number): number {
@@ -655,7 +828,7 @@ function createDetailNormalTexture(): THREE.CanvasTexture {
       nx /= len; ny /= len; nz /= len;
 
       const pidx = idx * 4;
-      data[pidx]     = Math.floor((nx * 0.5 + 0.5) * 255);
+      data[pidx] = Math.floor((nx * 0.5 + 0.5) * 255);
       data[pidx + 1] = Math.floor((ny * 0.5 + 0.5) * 255);
       data[pidx + 2] = Math.floor((nz * 0.5 + 0.5) * 255);
       data[pidx + 3] = 255;
@@ -710,7 +883,7 @@ function createSurfaceEnvironment(): SurfaceEnv {
     // Neutral gray albedo variation: strictly 0.10 - 0.18, NO color cast (R=G=B)
     const noise = (vColorRng() - 0.5) * 0.02;
     const gray = Math.max(0.10, Math.min(0.18, 0.125 + slope * 0.045 + noise));
-    fineCol[i * 3]     = gray;
+    fineCol[i * 3] = gray;
     fineCol[i * 3 + 1] = gray;
     fineCol[i * 3 + 2] = gray;
   }
@@ -762,10 +935,10 @@ function createSurfaceEnvironment(): SurfaceEnv {
   sunLight.castShadow = true;
   sunLight.shadow.mapSize.set(2048, 2048);
   sunLight.shadow.camera.near = 1.0;
-  sunLight.shadow.camera.far  = 160;
+  sunLight.shadow.camera.far = 160;
   sunLight.shadow.camera.left = -28;
   sunLight.shadow.camera.right = 28;
-  sunLight.shadow.camera.top  =  28;
+  sunLight.shadow.camera.top = 28;
   sunLight.shadow.camera.bottom = -28;
   sunLight.shadow.bias = -0.0008;
   sunLight.shadow.normalBias = 0.03;
@@ -806,9 +979,9 @@ function createSurfaceEnvironment(): SurfaceEnv {
 
   // Size classes: small (0.10–0.25m), medium (0.25–0.60m), large (0.60–1.15m)
   const sizeBands = [
-    { count: isMobile ? 35 : 75,  sMin: 0.10, sMax: 0.25 },
-    { count: isMobile ? 18 : 36,  sMin: 0.25, sMax: 0.60 },
-    { count: isMobile ? 6  : 14,  sMin: 0.60, sMax: 1.15 },
+    { count: isMobile ? 35 : 75, sMin: 0.10, sMax: 0.25 },
+    { count: isMobile ? 18 : 36, sMin: 0.25, sMax: 0.60 },
+    { count: isMobile ? 6 : 14, sMin: 0.60, sMax: 1.15 },
   ];
 
   const dummy = new THREE.Object3D();
@@ -819,7 +992,7 @@ function createSurfaceEnvironment(): SurfaceEnv {
     for (let i = 0; i < band.count; i++) {
       // Clustered near crater rims, completely clearing the central pad (dist > 3.8m)
       const angle = rockRng() * Math.PI * 2;
-      const dist  = 3.8 + rockRng() * 18.0;
+      const dist = 3.8 + rockRng() * 18.0;
       const rx = Math.cos(angle) * dist;
       const rz = Math.sin(angle) * dist;
       const ry = terrainHeight(rx, rz);
@@ -843,10 +1016,10 @@ function createSurfaceEnvironment(): SurfaceEnv {
   skyEarthGroup.position.set(4.8, 5.2, -15);
   const skyEarthMat = new THREE.ShaderMaterial({
     uniforms: {
-      dayTexture:   { value: earthDayMap },
+      dayTexture: { value: earthDayMap },
       nightTexture: { value: earthNightMap },
-      sunDir:       { value: sunDir },
-      viewPos:      { value: camera.position },
+      sunDir: { value: sunDir },
+      viewPos: { value: camera.position },
     },
     vertexShader: `
       varying vec3 vNormal; varying vec2 vUv; varying vec3 vViewVector;
@@ -944,13 +1117,13 @@ function createLander(): LanderModel {
   // Scale: 1 unit = 1m. Body ~0.95m radius, 1.1m tall. Legs span ~3.9m. Total height ~2.45m.
   const g = new THREE.Group();
 
-  const mliMat   = new THREE.MeshStandardMaterial({ color: 0xd4a843, metalness: 0.80, roughness: 0.35 });
+  const mliMat = new THREE.MeshStandardMaterial({ color: 0xd4a843, metalness: 0.80, roughness: 0.35 });
   const whiteMat = new THREE.MeshStandardMaterial({ color: 0xeff3f8, metalness: 0.15, roughness: 0.50 });
-  const darkMat  = new THREE.MeshStandardMaterial({ color: 0x1a1e24, metalness: 0.85, roughness: 0.42 });
-  const radMat   = new THREE.MeshStandardMaterial({ color: 0x111418, metalness: 0.70, roughness: 0.55 });
-  const alMat    = new THREE.MeshStandardMaterial({ color: 0xc8d0d8, metalness: 0.82, roughness: 0.30 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x1a1e24, metalness: 0.85, roughness: 0.42 });
+  const radMat = new THREE.MeshStandardMaterial({ color: 0x111418, metalness: 0.70, roughness: 0.55 });
+  const alMat = new THREE.MeshStandardMaterial({ color: 0xc8d0d8, metalness: 0.82, roughness: 0.30 });
   // Neutral metallic gray for footpads (NOT orange!)
-  const padMat   = new THREE.MeshStandardMaterial({ color: 0x8a929a, metalness: 0.85, roughness: 0.35 });
+  const padMat = new THREE.MeshStandardMaterial({ color: 0x8a929a, metalness: 0.85, roughness: 0.35 });
 
   // Chamfered octagonal body — lower bus (MLI gold)
   const busGeo = new THREE.CylinderGeometry(0.92, 0.98, 0.80, 8);
@@ -1011,7 +1184,7 @@ function createLander(): LanderModel {
     blending: THREE.AdditiveBlending,
     uniforms: {
       strength: { value: 0.0 },
-      time:     { value: 0.0 },
+      time: { value: 0.0 },
     },
     vertexShader: `
       varying vec2 vUv; varying float vFresnel;
@@ -1071,8 +1244,8 @@ function createLander(): LanderModel {
 
   for (let i = 0; i < 4; i++) {
     const a = i * Math.PI / 2 + Math.PI / 4;
-    const hipPos     = new THREE.Vector3(Math.cos(a) * 0.95, 0.55, Math.sin(a) * 0.95);
-    const kneePos    = new THREE.Vector3(Math.cos(a) * 1.55, -0.05, Math.sin(a) * 1.55);
+    const hipPos = new THREE.Vector3(Math.cos(a) * 0.95, 0.55, Math.sin(a) * 0.95);
+    const kneePos = new THREE.Vector3(Math.cos(a) * 1.55, -0.05, Math.sin(a) * 1.55);
     const braceMount = new THREE.Vector3(Math.cos(a) * 0.65, 0.18, Math.sin(a) * 0.65);
 
     // 1. Upper Strut: Hip to Knee
@@ -1240,18 +1413,18 @@ const DUST_COUNT = 120;
 const dustGeo = new THREE.BufferGeometry();
 const dustPos = new Float32Array(DUST_COUNT * 3);
 const dustVel = new Float32Array(DUST_COUNT * 3);  // initial velocities (seeded)
-const dustRng  = makeRNG(0xD05704);
-const LUNAR_G  = 1.62;  // m/s^2
+const dustRng = makeRNG(0xD05704);
+const LUNAR_G = 1.62;  // m/s^2
 
 // Seed velocities once — deterministic
 for (let i = 0; i < DUST_COUNT; i++) {
   const angle = dustRng() * Math.PI * 2;
   const speed = 0.8 + dustRng() * 2.8;
-  const upV   = 0.4 + dustRng() * 1.2;
-  dustVel[i*3]   = Math.cos(angle) * speed;
-  dustVel[i*3+1] = upV;
-  dustVel[i*3+2] = Math.sin(angle) * speed;
-  dustPos[i*3] = dustPos[i*3+1] = dustPos[i*3+2] = 0;
+  const upV = 0.4 + dustRng() * 1.2;
+  dustVel[i * 3] = Math.cos(angle) * speed;
+  dustVel[i * 3 + 1] = upV;
+  dustVel[i * 3 + 2] = Math.sin(angle) * speed;
+  dustPos[i * 3] = dustPos[i * 3 + 1] = dustPos[i * 3 + 2] = 0;
 }
 dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
 
@@ -1490,40 +1663,40 @@ root.appendChild(skipLink);
 // ═══════════════════════════════════════════════════════════════════
 interface CameraShot {
   progress: number;
-  pos:  THREE.Vector3;
+  pos: THREE.Vector3;
   look: THREE.Vector3;
-  fov:  number;
+  fov: number;
   name: string;
 }
 
 // Positions relative to the Earth/Moon scene scale
 const CAM_SHOTS: CameraShot[] = [
   // Shot 1: Earth wide — classic 32mm look
-  { progress: 0.00, pos: new THREE.Vector3(28, 3.5, 20),    look: new THREE.Vector3(23, -1.5, -6),    fov: 32, name: 'LOW EARTH ORBIT' },
+  { progress: 0.00, pos: new THREE.Vector3(28, 3.5, 20), look: new THREE.Vector3(23, -1.5, -6), fov: 32, name: 'LOW EARTH ORBIT' },
   // Shot 2: Departure — pull back from Earth
-  { progress: 0.20, pos: new THREE.Vector3(18, 5.5, 16),    look: new THREE.Vector3(17,  0.5, -10),   fov: 30, name: 'TRANS-LUNAR DEPARTURE' },
+  { progress: 0.20, pos: new THREE.Vector3(18, 5.5, 16), look: new THREE.Vector3(17, 0.5, -10), fov: 30, name: 'TRANS-LUNAR DEPARTURE' },
   // Shot 3a: Mid-flight
-  { progress: 0.38, pos: new THREE.Vector3(10, 4.5, 8),     look: new THREE.Vector3(7.5, 2.0, -18),  fov: 28, name: 'DEEP SPACE TRANSIT' },
+  { progress: 0.38, pos: new THREE.Vector3(10, 4.5, 8), look: new THREE.Vector3(7.5, 2.0, -18), fov: 28, name: 'DEEP SPACE TRANSIT' },
   // Shot 3b: Orbit hero — Moon right third, 35mm, slight dolly
-  { progress: 0.52, pos: new THREE.Vector3(6.0, 2.8, 0.5),  look: new THREE.Vector3(4.2, 0.8, -28),  fov: 35, name: 'LUNAR ORBIT INSERTION' },
+  { progress: 0.52, pos: new THREE.Vector3(6.0, 2.8, 0.5), look: new THREE.Vector3(4.2, 0.8, -28), fov: 35, name: 'LUNAR ORBIT INSERTION' },
   // Shot 4: Separation, pole approach — FOV narrows
-  { progress: 0.64, pos: new THREE.Vector3(5.8, 1.5, -12),  look: new THREE.Vector3(4.45, 0.2, -22), fov: 28, name: 'DESCENT ORBIT' },
+  { progress: 0.64, pos: new THREE.Vector3(5.8, 1.5, -12), look: new THREE.Vector3(4.45, 0.2, -22), fov: 28, name: 'DESCENT ORBIT' },
   // Shot 5: Surface transition — push in (FOV narrowing)
-  { progress: 0.76, pos: new THREE.Vector3(4.5, 1.0, -16),  look: new THREE.Vector3(0.0, 0.0, 0.0),  fov: 22, name: 'SURFACE APPROACH' },
+  { progress: 0.76, pos: new THREE.Vector3(4.5, 1.0, -16), look: new THREE.Vector3(0.0, 0.0, 0.0), fov: 22, name: 'SURFACE APPROACH' },
   // Shot 6: Establishing wide — low crane
-  { progress: 0.78, pos: new THREE.Vector3(-2.5, 1.8, 6.5), look: new THREE.Vector3(0.0, 0.0, 0.0),  fov: 38, name: 'POWERED DESCENT' },
+  { progress: 0.78, pos: new THREE.Vector3(-2.5, 1.8, 6.5), look: new THREE.Vector3(0.0, 0.0, 0.0), fov: 38, name: 'POWERED DESCENT' },
   // Shot 7: Descent follow — side-low
-  { progress: 0.84, pos: new THREE.Vector3(3.8, 1.2, 5.5),  look: new THREE.Vector3(0.0, 0.85, 0.0), fov: 35, name: 'FINAL APPROACH' },
+  { progress: 0.84, pos: new THREE.Vector3(3.8, 1.2, 5.5), look: new THREE.Vector3(0.0, 0.85, 0.0), fov: 35, name: 'FINAL APPROACH' },
   // Shot 7b: Leg deploy
-  { progress: 0.92, pos: new THREE.Vector3(3.2, 0.8, 4.2),  look: new THREE.Vector3(0.0, 0.45, 0.0), fov: 32, name: 'TOUCHDOWN IMMINENT' },
+  { progress: 0.92, pos: new THREE.Vector3(3.2, 0.8, 4.2), look: new THREE.Vector3(0.0, 0.45, 0.0), fov: 32, name: 'TOUCHDOWN IMMINENT' },
   // Shot 8: Touchdown hero — slow push-in, lander right third
-  { progress: 0.96, pos: new THREE.Vector3(3.8, 1.0, 4.8),  look: new THREE.Vector3(0.2, 0.5, 0.2),  fov: 32, name: 'SOUTH POLE TOUCHDOWN' },
+  { progress: 0.96, pos: new THREE.Vector3(3.8, 1.0, 4.8), look: new THREE.Vector3(0.2, 0.5, 0.2), fov: 32, name: 'SOUTH POLE TOUCHDOWN' },
   // Shot 8b: Hold with push-in
-  { progress: 1.00, pos: new THREE.Vector3(3.5, 0.85, 4.45),look: new THREE.Vector3(0.15, 0.42, 0.15),fov: 30, name: 'SOUTH POLE TOUCHDOWN' },
+  { progress: 1.00, pos: new THREE.Vector3(3.5, 0.85, 4.45), look: new THREE.Vector3(0.15, 0.42, 0.15), fov: 30, name: 'SOUTH POLE TOUCHDOWN' },
 ];
 
 function easeInOutCubic(x: number): number {
-  return x < 0.5 ? 4*x*x*x : 1 - Math.pow(-2*x+2, 3) / 2;
+  return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 }
 
 function getCameraAtT(t: number): { pos: THREE.Vector3; look: THREE.Vector3; fov: number; phaseName: string } {
@@ -1531,19 +1704,19 @@ function getCameraAtT(t: number): { pos: THREE.Vector3; look: THREE.Vector3; fov
   // Find surrounding shots
   let i = CAM_SHOTS.length - 1;
   for (let k = 0; k < CAM_SHOTS.length - 1; k++) {
-    if (clamped >= CAM_SHOTS[k].progress && clamped < CAM_SHOTS[k+1].progress) {
+    if (clamped >= CAM_SHOTS[k].progress && clamped < CAM_SHOTS[k + 1].progress) {
       i = k; break;
     }
   }
   const s0 = CAM_SHOTS[i];
-  const s1 = CAM_SHOTS[Math.min(i+1, CAM_SHOTS.length - 1)];
+  const s1 = CAM_SHOTS[Math.min(i + 1, CAM_SHOTS.length - 1)];
   const span = s1.progress - s0.progress;
   const localT = span > 0 ? (clamped - s0.progress) / span : 1;
   const ease = easeInOutCubic(Math.max(0, Math.min(1, localT)));
 
-  const pos  = new THREE.Vector3().lerpVectors(s0.pos,  s1.pos,  ease);
+  const pos = new THREE.Vector3().lerpVectors(s0.pos, s1.pos, ease);
   const look = new THREE.Vector3().lerpVectors(s0.look, s1.look, ease);
-  const fov  = s0.fov + (s1.fov - s0.fov) * ease;
+  const fov = s0.fov + (s1.fov - s0.fov) * ease;
 
   let phaseName = s0.name;
   // Pick the most advanced shot name
@@ -1650,17 +1823,17 @@ function computeSurfaceCamera(t: number, aspect: number): { pos: THREE.Vector3; 
 //  SCENE VISIBILITY — moonGroup/surfaceGroup never both visible
 // ═══════════════════════════════════════════════════════════════════
 function setShotVisibility(t: number) {
-  const showMoon    = t < SHOTS.moonFadeEnd + 0.01;
+  const showMoon = t < SHOTS.moonFadeEnd + 0.01;
   const showSurface = t >= SHOTS.moonFadeStart;
 
-  moonGroup.visible    = showMoon;
+  moonGroup.visible = showMoon;
   surfaceEnv.group.visible = showSurface;
 
   // Opacity-based crossfade on moon shaders
   const alpha = Math.max(0, Math.min(1, (t - SHOTS.moonFadeStart) / Math.max(0.001, SHOTS.moonFadeEnd - SHOTS.moonFadeStart)));
   const moonAlpha = easeInOutCubic(1.0 - alpha);
-  (MoonMaterial.uniforms.opacity as any).value    = moonAlpha;
-  (moonGlowMat.uniforms.opacity as any).value     = moonAlpha;
+  (MoonMaterial.uniforms.opacity as any).value = moonAlpha;
+  (moonGlowMat.uniforms.opacity as any).value = moonAlpha;
 
   if (DEBUG) {
     if (moonGroup.visible && surfaceEnv.group.visible) {
@@ -1678,7 +1851,7 @@ function assertVisibilityConsistency() {
   if (!DEBUG) return;
   for (let i = 0; i <= 1000; i++) {
     const t = i / 1000;
-    const isMoonVisible    = t < SHOTS.moonFadeEnd + 0.01;
+    const isMoonVisible = t < SHOTS.moonFadeEnd + 0.01;
     const isSurfaceVisible = t >= SHOTS.moonFadeStart;
     // They can both be visible ONLY during the crossfade window
     const inCrossfade = t >= SHOTS.moonFadeStart && t <= SHOTS.moonFadeEnd + 0.01;
@@ -1692,9 +1865,9 @@ function assertVisibilityConsistency() {
 // ═══════════════════════════════════════════════════════════════════
 //  JOURNEY STATE — critically damped spring
 // ═══════════════════════════════════════════════════════════════════
-let rawT     = 0;      // raw accumulated target
-let smoothT  = 0;      // spring-smoothed value used for rendering
-let velT     = 0;      // spring velocity
+let rawT = 0;      // raw accumulated target
+let smoothT = 0;      // spring-smoothed value used for rendering
+let velT = 0;      // spring velocity
 let autoSpeed = SHOTS.autoSpeed;
 let autoResumeTimer: ReturnType<typeof setTimeout> | null = null;
 const lookTarget = new THREE.Vector3();
@@ -1719,13 +1892,13 @@ function pauseAutoAdvance() {
 
 // Spring integration
 function springStep(dt: number) {
-  const k  = SHOTS.springStiffness;
-  const b  = SHOTS.springDamping;
+  const k = SHOTS.springStiffness;
+  const b = SHOTS.springDamping;
   const target = Math.max(0, Math.min(1, rawT));
   const acc = k * (target - smoothT) - b * velT;
-  velT     += acc * dt;
-  smoothT  += velT * dt;
-  smoothT   = Math.max(0, Math.min(1, smoothT));
+  velT += acc * dt;
+  smoothT += velT * dt;
+  smoothT = Math.max(0, Math.min(1, smoothT));
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1748,7 +1921,7 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matc
 // ═══════════════════════════════════════════════════════════════════
 //  LETTER REVEAL
 // ═══════════════════════════════════════════════════════════════════
-const LETTER_T     = [0.00, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30];
+const LETTER_T = [0.00, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30];
 const LETTER_RANGE = 0.07;
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1786,18 +1959,18 @@ function updateUI(t: number, _elapsed: number) {
   document.querySelectorAll<HTMLElement>('.hero-letter').forEach((el, i) => {
     if (reducedMotion) { el.style.opacity = '1'; el.style.transform = 'none'; return; }
     const raw = Math.max(0, Math.min(1, (cl - LETTER_T[i]) / LETTER_RANGE));
-    const p   = easeInOutCubic(raw);
-    el.style.opacity   = String(p);
-    el.style.transform = `translateY(${(1-p)*24}px) scale(${0.88 + p*0.12})`;
-    el.style.filter    = p > 0.02
-      ? `drop-shadow(0 0 ${p*6}px rgba(56,189,248,${p*0.38}))` : 'none';
+    const p = easeInOutCubic(raw);
+    el.style.opacity = String(p);
+    el.style.transform = `translateY(${(1 - p) * 24}px) scale(${0.88 + p * 0.12})`;
+    el.style.filter = p > 0.02
+      ? `drop-shadow(0 0 ${p * 6}px rgba(56,189,248,${p * 0.38}))` : 'none';
   });
 
   // Accent line
   const accent = document.getElementById('accent-line');
   if (accent) {
     const p = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.32) / 0.10)));
-    accent.style.width   = `${p * 100}%`;
+    accent.style.width = `${p * 100}%`;
     accent.style.opacity = String(p);
   }
 
@@ -1808,7 +1981,7 @@ function updateUI(t: number, _elapsed: number) {
       const p = easeInOutCubic(Math.max(0, Math.min(1, (cl - SHOTS.s8_touchdown) / 0.04)));
       tagline.style.opacity = String(p);
     } else {
-      const pIn  = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.38) / 0.10)));
+      const pIn = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.38) / 0.10)));
       const pOut = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.52) / 0.06)));
       tagline.style.opacity = String(pIn * (1 - pOut));
     }
@@ -1821,7 +1994,7 @@ function updateUI(t: number, _elapsed: number) {
       const p = easeInOutCubic(Math.max(0, Math.min(1, (cl - (SHOTS.s8_touchdown + 0.01)) / 0.04)));
       desc.style.opacity = String(p);
     } else {
-      const pIn  = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.42) / 0.10)));
+      const pIn = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.42) / 0.10)));
       const pOut = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.54) / 0.06)));
       desc.style.opacity = String(pIn * (1 - pOut));
     }
@@ -1862,22 +2035,22 @@ function updateUI(t: number, _elapsed: number) {
   const descentHud = document.getElementById('descent-hud');
   if (descentHud) {
     if (cl >= SHOTS.s7_descent && cl < SHOTS.touchdownT) {
-      const dp   = (cl - SHOTS.s7_descent) / (SHOTS.touchdownT - SHOTS.s7_descent);
-      const alt  = Math.max(0, 280 * (1 - dp));
-      const vs   = -(0.5 + dp * 3.8);
+      const dp = (cl - SHOTS.s7_descent) / (SHOTS.touchdownT - SHOTS.s7_descent);
+      const alt = Math.max(0, 280 * (1 - dp));
+      const vs = -(0.5 + dp * 3.8);
       const fuel = Math.max(12, Math.round(98 - dp * 82));
       let phase = 'POWERED DESCENT';
       if (dp > 0.8) phase = 'TERMINAL GUIDANCE';
       else if (dp < 0.25) phase = 'APPROACH BURN';
 
-      const altEl   = document.getElementById('telem-alt');
-      const vspdEl  = document.getElementById('telem-vspd');
+      const altEl = document.getElementById('telem-alt');
+      const vspdEl = document.getElementById('telem-vspd');
       const phaseEl = document.getElementById('telem-phase');
-      const fuelEl  = document.getElementById('telem-fuel');
-      if (altEl)   altEl.textContent   = `${alt.toFixed(0)} m`;
-      if (vspdEl)  vspdEl.textContent  = `${vs.toFixed(1)} m/s`;
+      const fuelEl = document.getElementById('telem-fuel');
+      if (altEl) altEl.textContent = `${alt.toFixed(0)} m`;
+      if (vspdEl) vspdEl.textContent = `${vs.toFixed(1)} m/s`;
       if (phaseEl) phaseEl.textContent = phase;
-      if (fuelEl)  fuelEl.textContent  = `${fuel} %`;
+      if (fuelEl) fuelEl.textContent = `${fuel} %`;
 
       const p = easeInOutCubic(Math.max(0, Math.min(1, (cl - SHOTS.s7_descent) / 0.02)));
       descentHud.style.opacity = String(p);
@@ -1891,7 +2064,7 @@ function updateUI(t: number, _elapsed: number) {
   if (spCard) {
     if (cl >= SHOTS.touchdownT) {
       const p = easeInOutCubic(Math.max(0, Math.min(1, (cl - SHOTS.touchdownT) / 0.025)));
-      spCard.style.opacity   = String(p);
+      spCard.style.opacity = String(p);
       spCard.style.transform = `translateY(${-50 + (1 - p) * 10}%)`;
       spCard.style.pointerEvents = cl >= SHOTS.touchdownT + 0.005 ? 'auto' : 'none';
     } else {
@@ -1976,7 +2149,7 @@ function adaptQuality(frameMs: number) {
   frameTimeSamples.push(frameMs);
   if (frameTimeSamples.length > 30) {
     frameTimeSamples.shift();
-    const avg = frameTimeSamples.reduce((a,b) => a+b) / frameTimeSamples.length;
+    const avg = frameTimeSamples.reduce((a, b) => a + b) / frameTimeSamples.length;
     if (avg > 22 && qualityLevel > 0) {
       qualityLevel--;
       if (qualityLevel < 1) { bloom.enabled = false; }
@@ -2005,13 +2178,13 @@ function animate() {
   requestAnimationFrame(animate);
   if (!pageVisible) return;
 
-  const dt      = Math.min(clock.getDelta(), 0.1);  // cap for tab switch recovery
+  const dt = Math.min(clock.getDelta(), 0.1);  // cap for tab switch recovery
   const elapsed = clock.getElapsedTime();
-  const t0      = performance.now();
+  const t0 = performance.now();
 
   // Spring-advance journey
   rawT += autoSpeed * dt;
-  rawT  = Math.max(0, Math.min(1, rawT));
+  rawT = Math.max(0, Math.min(1, rawT));
   springStep(dt);
   const T = smoothT;  // all rendering is a pure function of T
 
@@ -2052,11 +2225,11 @@ function animate() {
     const cp = orbitCurve.getPoint(tc);
     const ct = orbitCurve.getTangent(tc).normalize();
     orbiter.group.position.copy(cp);
-    orbiter.group.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1), ct);
+    orbiter.group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), ct);
     orbiter.group.rotateZ(elapsed * 0.10);
     orbiter.group.scale.setScalar(1.0);
     orbiter.thrusterMat.opacity = 0.20 + Math.sin(elapsed * 9) * 0.10;
-    orbiter.beaconMat.opacity   = Math.sin(elapsed * 4.2) > 0.88 ? 0.9 : 0.0;
+    orbiter.beaconMat.opacity = Math.sin(elapsed * 4.2) > 0.88 ? 0.9 : 0.0;
   } else if (T >= SHOTS.s3_orbit && T < SHOTS.s4_separation) {
     orbiter.group.visible = true;
     const angle = elapsed * 0.35;
@@ -2067,17 +2240,17 @@ function animate() {
     );
     orbiter.group.position.copy(orR);
     const tang = new THREE.Vector3(-Math.sin(angle), 0.15, Math.cos(angle)).normalize();
-    orbiter.group.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1), tang);
+    orbiter.group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), tang);
     orbiter.group.scale.setScalar(1.0);
     orbiter.thrusterMat.opacity = 0.22 + Math.sin(elapsed * 9) * 0.08;
-    orbiter.beaconMat.opacity   = Math.sin(elapsed * 4) > 0.88 ? 0.9 : 0.0;
+    orbiter.beaconMat.opacity = Math.sin(elapsed * 4) > 0.88 ? 0.9 : 0.0;
   } else {
     orbiter.group.visible = false;
   }
 
   // ── Lander ──
   const TL_START = SHOTS.landerStartT;
-  const TL_END   = SHOTS.landerDescentEnd;
+  const TL_END = SHOTS.landerDescentEnd;
 
   if (T < TL_START) {
     lander.group.visible = false;
@@ -2085,11 +2258,11 @@ function animate() {
   } else if (T < TL_END) {
     lander.group.visible = true;
     dustPoints.visible = false;
-    const dP     = (T - TL_START) / (TL_END - TL_START);
+    const dP = (T - TL_START) / (TL_END - TL_START);
     const easeDP = easeInOutCubic(dP);
 
     const descentStart = new THREE.Vector3(0, 2.6, 0);
-    const descentEnd   = getLanderGroundedPos(0);
+    const descentEnd = getLanderGroundedPos(0);
 
     // Ease-in/ease-out descent
     lander.group.position.lerpVectors(descentStart, descentEnd, easeInOutCubic(dP));
@@ -2104,7 +2277,7 @@ function animate() {
     // Plume strength
     const plume = T >= SHOTS.s7_legsOut ? 1.0 - easeInOutCubic((T - SHOTS.s7_legsOut) / (TL_END - SHOTS.s7_legsOut)) * 0.85 : 1.0;
     (lander.plumeMat.uniforms.strength as any).value = plume * (0.7 + Math.sin(elapsed * 22) * 0.3);
-    (lander.plumeMat.uniforms.time as any).value     = elapsed;
+    (lander.plumeMat.uniforms.time as any).value = elapsed;
     lander.engineLight.intensity = plume * (3.2 + Math.sin(elapsed * 18) * 1.0);
 
     // Blast decal fades in with plume strength
@@ -2125,12 +2298,12 @@ function animate() {
 
     // Fully grounded when hold begins — compress 3-4cm in settle
     const tTouch = (T - SHOTS.touchdownT) / Math.max(0.001, 1.0 - SHOTS.touchdownT);
-    const settleAmp  = 0.035;  // 3.5cm compression
-    const omegaD     = 18.0;
-    const dampCoeff  = 0.7;
-    const settle     = settleAmp * Math.exp(-dampCoeff * omegaD * Math.min(tTouch, 1.0))
-                      * Math.cos(omegaD * Math.min(tTouch, 0.5));
-    const groundPos  = getLanderGroundedPos(settle);
+    const settleAmp = 0.035;  // 3.5cm compression
+    const omegaD = 18.0;
+    const dampCoeff = 0.7;
+    const settle = settleAmp * Math.exp(-dampCoeff * omegaD * Math.min(tTouch, 1.0))
+      * Math.cos(omegaD * Math.min(tTouch, 0.5));
+    const groundPos = getLanderGroundedPos(settle);
     lander.group.position.copy(groundPos);
     lander.group.rotation.set(0, 0.4, 0);
 
@@ -2158,7 +2331,7 @@ function animate() {
       const pa = dustPoints.geometry.attributes.position as THREE.BufferAttribute;
       const LUNAR_DT = dustLifeT * 2.0;
       for (let i = 0; i < DUST_COUNT; i++) {
-        const vx = dustVel[i*3], vy = dustVel[i*3+1], vz = dustVel[i*3+2];
+        const vx = dustVel[i * 3], vy = dustVel[i * 3 + 1], vz = dustVel[i * 3 + 2];
         pa.setXYZ(i,
           vx * LUNAR_DT,
           vy * LUNAR_DT - 0.5 * LUNAR_G * LUNAR_DT * LUNAR_DT,
@@ -2188,7 +2361,7 @@ function animate() {
   (moonGlowMat.uniforms.viewVector as any).value.copy(camera.position);
 
   // ── Earth scene ──
-  earthMesh.rotation.y      += dt * 0.011;
+  earthMesh.rotation.y += dt * 0.011;
   earthCloudsMesh.rotation.y += dt * 0.016;
   (EarthMaterial.uniforms.viewPos as any).value.copy(camera.position);
   (EarthCloudsMaterial.uniforms.viewPos as any).value.copy(camera.position);
@@ -2221,11 +2394,11 @@ if (DEBUG || true) {  // always expose for playwright
     },
     getJourney: () => smoothT,
     visibility: () => ({
-      moonGroup:    moonGroup.visible,
-      moonOpacity:  (MoonMaterial.uniforms.opacity as any).value,
+      moonGroup: moonGroup.visible,
+      moonOpacity: (MoonMaterial.uniforms.opacity as any).value,
       surfaceGroup: surfaceEnv.group.visible,
-      lander:       lander.group.visible,
-      orbiter:      orbiter.group.visible,
+      lander: lander.group.visible,
+      orbiter: orbiter.group.visible,
     }),
     terrainHeight,
     assertVisibility: assertVisibilityConsistency,
@@ -2235,7 +2408,7 @@ if (DEBUG || true) {  // always expose for playwright
         return {
           world,
           terrainH: terrainHeight(world.x, world.z),
-          delta:    world.y - terrainHeight(world.x, world.z),
+          delta: world.y - terrainHeight(world.x, world.z),
         };
       });
     },
