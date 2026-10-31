@@ -593,61 +593,244 @@ interface SpacecraftModel {
   beaconMat: THREE.MeshBasicMaterial;
 }
 
+function createSolarPanelTexture(): THREE.CanvasTexture {
+  const cvs = document.createElement('canvas');
+  cvs.width = 256;
+  cvs.height = 128;
+  const ctx = cvs.getContext('2d')!;
+
+  ctx.fillStyle = '#081426';
+  ctx.fillRect(0, 0, 256, 128);
+
+  const cols = 5;
+  const rows = 3;
+  const pad = 4;
+  const w = (256 - pad * (cols + 1)) / cols;
+  const h = (128 - pad * (rows + 1)) / rows;
+
+  for (let c = 0; c < cols; c++) {
+    for (let ro = 0; ro < rows; ro++) {
+      const x = pad + c * (w + pad);
+      const y = pad + ro * (h + pad);
+
+      const grad = ctx.createLinearGradient(x, y, x + w, y + h);
+      grad.addColorStop(0, '#2b6cb0');
+      grad.addColorStop(0.4, '#1e4e8c');
+      grad.addColorStop(1, '#133360');
+      ctx.fillStyle = grad;
+      ctx.fillRect(x, y, w, h);
+
+      ctx.strokeStyle = 'rgba(125, 211, 252, 0.7)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, y + h * 0.5);
+      ctx.lineTo(x + w, y + h * 0.5);
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(125, 211, 252, 0.4)';
+      ctx.beginPath();
+      ctx.moveTo(x + w * 0.33, y);
+      ctx.lineTo(x + w * 0.33, y + h);
+      ctx.moveTo(x + w * 0.67, y);
+      ctx.lineTo(x + w * 0.67, y + h);
+      ctx.stroke();
+    }
+  }
+
+  const tex = new THREE.CanvasTexture(cvs);
+  tex.wrapS = THREE.ClampToEdgeWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  return tex;
+}
+
 function createOrbiter(): SpacecraftModel {
   const r = new THREE.Group();
-  const hullMat = new THREE.MeshStandardMaterial({ color: 0xedf2f8, metalness: 0.65, roughness: 0.30 });
-  const goldMat  = new THREE.MeshStandardMaterial({ color: 0xcf9e2a, metalness: 0.92, roughness: 0.18 });
-  const darkMat  = new THREE.MeshStandardMaterial({ color: 0x181c22, metalness: 0.88, roughness: 0.42, side: THREE.DoubleSide });
-  const solarMat = new THREE.MeshStandardMaterial({ color: 0x071528, metalness: 0.90, roughness: 0.12 });
-  const dishMat  = new THREE.MeshStandardMaterial({ color: 0xd8dfe8, metalness: 0.88, roughness: 0.28, side: THREE.DoubleSide });
 
-  r.add(Object.assign(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.36, 0.85, 8), hullMat)));
-  r.add(Object.assign(new THREE.Mesh(new THREE.CylinderGeometry(0.362, 0.362, 0.38, 8), goldMat)));
+  const hullMat = new THREE.MeshStandardMaterial({
+    color: 0xf0f5fc,
+    metalness: 0.60,
+    roughness: 0.32,
+    emissive: 0x1b2838,
+    emissiveIntensity: 0.35,
+  });
 
-  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.34, 0.44, 8), hullMat);
-  cap.position.y = 0.64; r.add(cap);
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: 0xf5a21b,
+    metalness: 0.55,
+    roughness: 0.35,
+    emissive: 0x452203,
+    emissiveIntensity: 0.60,
+    side: THREE.DoubleSide,
+  });
 
-  const dr = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.022, 8, 20), darkMat);
-  dr.rotation.x = Math.PI / 2; dr.position.y = 0.87; r.add(dr);
+  const strutMat = new THREE.MeshStandardMaterial({
+    color: 0xd6e3f2,
+    metalness: 0.70,
+    roughness: 0.28,
+    emissive: 0x223247,
+    emissiveIntensity: 0.60,
+    side: THREE.DoubleSide,
+  });
+
+  const darkMat = new THREE.MeshStandardMaterial({
+    color: 0x242d38,
+    metalness: 0.80,
+    roughness: 0.40,
+    emissive: 0x0f151c,
+    emissiveIntensity: 0.35,
+    side: THREE.DoubleSide,
+  });
+
+  const solarTex = createSolarPanelTexture();
+  const solarMat = new THREE.MeshStandardMaterial({
+    map: solarTex,
+    color: 0x60a5fa,
+    emissive: 0x1e40af,
+    emissiveMap: solarTex,
+    emissiveIntensity: 0.85,
+    metalness: 0.30,
+    roughness: 0.25,
+    side: THREE.DoubleSide,
+  });
+
+  const dishMat = new THREE.MeshStandardMaterial({
+    color: 0xe2ebf5,
+    metalness: 0.85,
+    roughness: 0.25,
+    emissive: 0x1b2738,
+    emissiveIntensity: 0.40,
+    side: THREE.DoubleSide,
+  });
+
+  r.add(Object.assign(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.36, 0.85, 12), hullMat)));
+  r.add(Object.assign(new THREE.Mesh(new THREE.CylinderGeometry(0.364, 0.364, 0.38, 12), goldMat)));
+
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.34, 0.44, 12), hullMat);
+  cap.position.y = 0.64;
+  r.add(cap);
+
+  const dr = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.022, 8, 20), strutMat);
+  dr.rotation.x = Math.PI / 2;
+  dr.position.y = 0.87;
+  r.add(dr);
 
   const eng = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.09, 0.30, 16, 1, true), darkMat);
-  eng.position.y = -0.58; r.add(eng);
+  eng.position.y = -0.58;
+  r.add(eng);
 
   const thrusterMat = new THREE.MeshBasicMaterial({
-    color: 0x9dd0ef, transparent: true, opacity: 0.30,
-    blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false,
+    color: 0x9dd0ef,
+    transparent: true,
+    opacity: 0.30,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+    depthWrite: false,
   });
   const thrust = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.32, 12, 1, true), thrusterMat);
-  thrust.position.y = -0.76; thrust.rotation.x = Math.PI; r.add(thrust);
+  thrust.position.y = -0.76;
+  thrust.rotation.x = Math.PI;
+  r.add(thrust);
 
-  [-1, 1].forEach(side => {
-    const wg = new THREE.Group();
-    wg.position.set(side * 0.44, 0, 0);
-    const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.28, 8), darkMat);
-    boom.rotation.z = Math.PI / 2; boom.position.x = side * 0.14; wg.add(boom);
+  // Both Wing Arrays with visible connecting structural booms & articulate solar panels
+  [-1, 1].forEach((side) => {
+    // 1. Hull mounting bracket / gimbal collar attached directly to the hull
+    const mountCollar = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.09, 12), strutMat);
+    mountCollar.rotation.z = Math.PI / 2;
+    mountCollar.position.set(side * 0.35, 0, 0);
+    r.add(mountCollar);
+
+    const mountRing = new THREE.Mesh(new THREE.TorusGeometry(0.068, 0.016, 8, 16), goldMat);
+    mountRing.rotation.y = Math.PI / 2;
+    mountRing.position.set(side * 0.37, 0, 0);
+    r.add(mountRing);
+
+    // 2. Primary structural boom bridging continuously from the hull to the wing array
+    const boomLength = 0.38;
+    const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, boomLength, 12), strutMat);
+    boom.rotation.z = Math.PI / 2;
+    boom.position.set(side * (0.35 + boomLength / 2), 0, 0);
+    r.add(boom);
+
+    // Reinforcing gold truss strut
+    const subStrut = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, boomLength * 0.95, 8), goldMat);
+    subStrut.rotation.z = Math.PI / 2;
+    subStrut.position.set(side * (0.35 + boomLength / 2), 0.035, 0);
+    r.add(subStrut);
+
+    // 3. Wing root gimbal yoke
+    const wingRootX = side * (0.35 + boomLength);
+    const yoke = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.08, 0.09), goldMat);
+    yoke.position.set(wingRootX, 0, 0);
+    r.add(yoke);
+
+    const yokePivot = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.09, 8), strutMat);
+    yokePivot.position.set(wingRootX, 0, 0);
+    r.add(yokePivot);
+
+    // 4. Multi-segment Solar Panels (3 panels per wing)
+    const panelWidth = 0.50;
+    const panelDepth = 0.36;
+    const panelGap = 0.05;
+
     for (let p = 0; p < 3; p++) {
-      const pg = new THREE.Group(); pg.position.x = side * (0.34 + p * 0.52);
-      pg.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.47, 0.013, 0.31), goldMat)));
-      pg.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.015, 0.28), solarMat)));
-      wg.add(pg);
+      const panelCenterX = wingRootX + side * (0.05 + panelWidth / 2 + p * (panelWidth + panelGap));
+      const pg = new THREE.Group();
+      pg.position.set(panelCenterX, 0, 0);
+
+      // Gold Kapton MLI thermal substrate & perimeter frame
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(panelWidth, 0.015, panelDepth), goldMat);
+      pg.add(frame);
+
+      // Photovoltaic cell face (visible on both sides)
+      const cells = new THREE.Mesh(new THREE.BoxGeometry(panelWidth - 0.025, 0.020, panelDepth - 0.025), solarMat);
+      pg.add(cells);
+
+      // Silver structural edge ribs
+      const rib = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.022, panelDepth + 0.008), strutMat);
+      rib.position.set(side * (panelWidth / 2), 0, 0);
+      pg.add(rib);
+
+      r.add(pg);
+
+      // Inter-panel hinge connectors
+      if (p < 2) {
+        const hingeX = panelCenterX + side * (panelWidth / 2 + panelGap / 2);
+        const hinge = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.06, 8), strutMat);
+        hinge.rotation.x = Math.PI / 2;
+        hinge.position.set(hingeX, 0, 0);
+        r.add(hinge);
+      }
     }
-    r.add(wg);
   });
 
   const dg = new THREE.Group();
-  dg.position.set(0.30, 0.20, 0.30); dg.rotation.set(-0.55, 0.65, 0);
+  dg.position.set(0.30, 0.20, 0.30);
+  dg.rotation.set(-0.55, 0.65, 0);
   dg.add(new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.42), dishMat));
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.20, 6), darkMat);
-  mast.position.z = 0.10; mast.rotation.x = Math.PI / 2; dg.add(mast);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.20, 6), strutMat);
+  mast.position.z = 0.10;
+  mast.rotation.x = Math.PI / 2;
+  dg.add(mast);
   r.add(dg);
 
   const beaconMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.0 });
-  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 6), beaconMat);
-  beacon.position.y = 0.93; r.add(beacon);
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), beaconMat);
+  beacon.position.y = 0.93;
+  r.add(beacon);
 
   const aligned = new THREE.Group();
   r.rotation.x = Math.PI / 2;
   aligned.add(r);
+
+  // Dedicated fill lights parented to the spacecraft so wings and connectors are always bright and legible
+  const craftFillLight = new THREE.DirectionalLight(0x78aeff, 1.4);
+  craftFillLight.position.set(-8, 6, -6);
+  aligned.add(craftFillLight);
+
+  const craftBackFill = new THREE.DirectionalLight(0x38bdf8, 1.0);
+  craftBackFill.position.set(6, -6, 5);
+  aligned.add(craftBackFill);
+
   return { group: aligned, thrusterMat, beaconMat };
 }
 
