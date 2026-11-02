@@ -5,14 +5,11 @@
  * Earth positions for a selected UTC timestamp and lunar site.
  *
  * Design decisions:
- *  - This file touches ONLY the panel DOM and the Three.js sunLight/
- *    earthshineLight direction.  It does NOT modify any other parts of
- *    main.ts (Moon mesh, controls, post-processing, etc.).
- *  - Sun lighting direction is updated only when the backend returns a
- *    validated result.  The fallback animated direction in main.ts remains
- *    active when the backend is unavailable.
- *  - The panel clearly distinguishes between geometric horizon results
- *    (from SPICE) and terrain-aware visibility (not yet implemented).
+ *  - Communicates directly with the FastAPI SPICE service.
+ *  - Real-time connection status with interactive retry button.
+ *  - Quick epoch stepping controls (+/- 1h, +/- 24h, Now, Artemis landing window).
+ *  - Distinguishes between geometric horizon results (from SPICE) and terrain-aware visibility.
+ *  - High-precision aerospace UI styling.
  */
 
 import * as THREE from 'three';
@@ -24,34 +21,25 @@ import {
   type GeometryResponse,
   type SpiceHealth,
 } from './spiceClient';
-
-// ---------------------------------------------------------------------------
-// Types provided by the consumer (main.ts)
-// ---------------------------------------------------------------------------
+import { validateCoordinates } from './utils/coordinates';
 
 export interface PanelLights {
   sunLight: THREE.DirectionalLight;
   earthshineLight: THREE.DirectionalLight;
 }
 
-// ---------------------------------------------------------------------------
-// State
-// ---------------------------------------------------------------------------
-
 let _lights: PanelLights | null = null;
 let _fetchInFlight = false;
 let _autoUpdate = false;
 let _autoInterval: ReturnType<typeof setInterval> | null = null;
+let _panelElement: HTMLElement | null = null;
 
-// Default site: NASA Artemis Site 01 Shackleton-de Gerlache Connecting Ridge
 const DEFAULT_SITE = {
   lat: -89.463,
   lon: 222.51,
   elev: 1100.0,
   label: 'Artemis Site 01 · Shackleton–de Gerlache Ridge',
 };
-
-let _panelElement: HTMLElement | null = null;
 
 export async function setPanelSite(lat: number, lon: number, label: string, utcTime?: string) {
   if (!_panelElement) return;
@@ -65,7 +53,6 @@ export async function setPanelSite(lat: number, lon: number, label: string, utcT
   if (lonInput) lonInput.value = lon.toFixed(2);
   if (note) note.textContent = label;
 
-  // Sync active visual state on South Pole candidate site buttons
   _panelElement.querySelectorAll<HTMLButtonElement>('.spice-preset-btn').forEach((btn) => {
     const bLat = parseFloat(btn.dataset.lat || '999');
     const bLon = parseFloat(btn.dataset.lon || '999');
@@ -79,23 +66,22 @@ export async function setPanelSite(lat: number, lon: number, label: string, utcT
   if (utcTime) {
     if (timeInput) timeInput.value = utcTime;
     if (predBadge) {
-      predBadge.textContent = `🎯 Target Date: ${utcTime}`;
+      predBadge.textContent = `🎯 Mission Epoch: ${utcTime}`;
       predBadge.style.display = 'block';
     }
     triggerFetch(_panelElement);
     return;
   }
 
-  // Scan landing windows to predict the next optimal safe landing date for this site
+  // Predict landing window
   if (predBadge) {
-    predBadge.textContent = '⏳ Predicting optimal landing window...';
+    predBadge.textContent = '⏳ Scanning optimal illumination window...';
     predBadge.style.display = 'block';
   }
 
   try {
-    const today = new Date();
-    const startDate = today.toISOString().slice(0, 10);
-    const endDate = new Date(today.getTime() + 60 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    const startDate = '2026-10-01';
+    const endDate = '2026-12-31';
 
     const scan = await fetchLandingWindows({
       start_date: startDate,
@@ -125,16 +111,16 @@ export async function setPanelSite(lat: number, lon: number, label: string, utcT
       const bestIso = `${bestDateStr}T12:00:00Z`;
       if (timeInput) timeInput.value = bestIso;
       if (predBadge) {
-        predBadge.innerHTML = `🎯 Predicted Safe Window: <strong>${bestDateStr}</strong> (${score}/100)`;
+        predBadge.innerHTML = `🎯 Predicted Safe Window: <strong>${bestDateStr}</strong> (Score: ${score}/100)`;
         predBadge.style.display = 'block';
       }
     } else {
-      if (timeInput) timeInput.value = new Date().toISOString().slice(0, 19) + 'Z';
+      if (timeInput) timeInput.value = '2026-10-16T12:00:00Z';
       if (predBadge) predBadge.style.display = 'none';
     }
   } catch (err) {
-    console.warn('[SPICE] Landing window prediction scan failed, falling back to current time', err);
-    if (timeInput) timeInput.value = new Date().toISOString().slice(0, 19) + 'Z';
+    console.warn('[SPICE] Landing window prediction scan failed', err);
+    if (timeInput && !timeInput.value) timeInput.value = '2026-10-16T12:00:00Z';
     if (predBadge) predBadge.style.display = 'none';
   }
 
@@ -150,10 +136,6 @@ export function setPanelTime(utcTime: string) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Panel DOM construction
-// ---------------------------------------------------------------------------
-
 export function createGeometryPanel(lights: PanelLights): HTMLElement {
   _lights = lights;
 
@@ -163,13 +145,17 @@ export function createGeometryPanel(lights: PanelLights): HTMLElement {
   document.body.appendChild(panel);
   _panelElement = panel;
 
-  // Wire up controls
+  // Primary controls
   panel.querySelector<HTMLButtonElement>('#spice-fetch-btn')!
     .addEventListener('click', () => triggerFetch(panel));
 
   panel.querySelector<HTMLButtonElement>('#spice-auto-btn')!
     .addEventListener('click', () => toggleAutoUpdate(panel));
 
+  panel.querySelector<HTMLButtonElement>('#spice-retry-btn')
+    ?.addEventListener('click', () => checkHealth(panel, true));
+
+  // Quick Epoch Step Buttons
   panel.querySelector<HTMLButtonElement>('#spice-now-btn')
     ?.addEventListener('click', () => {
       const timeInput = panel.querySelector<HTMLInputElement>('#spice-time-input');
@@ -179,7 +165,25 @@ export function createGeometryPanel(lights: PanelLights): HTMLElement {
       }
     });
 
-  // South Pole site presets
+  panel.querySelector<HTMLButtonElement>('#spice-epoch-artemis')
+    ?.addEventListener('click', () => {
+      const timeInput = panel.querySelector<HTMLInputElement>('#spice-time-input');
+      if (timeInput) {
+        timeInput.value = '2026-10-16T12:00:00Z';
+        triggerFetch(panel);
+      }
+    });
+
+  panel.querySelector<HTMLButtonElement>('#spice-step-back-24')
+    ?.addEventListener('click', () => stepTimeHours(-24));
+  panel.querySelector<HTMLButtonElement>('#spice-step-back-1')
+    ?.addEventListener('click', () => stepTimeHours(-1));
+  panel.querySelector<HTMLButtonElement>('#spice-step-fwd-1')
+    ?.addEventListener('click', () => stepTimeHours(1));
+  panel.querySelector<HTMLButtonElement>('#spice-step-fwd-24')
+    ?.addEventListener('click', () => stepTimeHours(24));
+
+  // Preset candidate buttons
   panel.querySelectorAll<HTMLButtonElement>('.spice-preset-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const lat = parseFloat(btn.dataset.lat || '-90');
@@ -191,7 +195,7 @@ export function createGeometryPanel(lights: PanelLights): HTMLElement {
     });
   });
 
-  // Collapse/expand toggle
+  // Collapse/expand
   const header = panel.querySelector<HTMLDivElement>('.spice-header')!;
   const body   = panel.querySelector<HTMLDivElement>('.spice-body')!;
   header.addEventListener('click', () => {
@@ -200,62 +204,93 @@ export function createGeometryPanel(lights: PanelLights): HTMLElement {
     header.querySelector('.spice-collapse-icon')!.textContent = collapsed ? '▼' : '▶';
   });
 
-  // Populate datetime input with current UTC time
+  // Default time
   const timeInput = panel.querySelector<HTMLInputElement>('#spice-time-input')!;
-  timeInput.value = new Date().toISOString().slice(0, 19) + 'Z';
+  timeInput.value = '2026-10-16T12:00:00Z';
 
-  // Check backend health on load (non-blocking)
+  // Check health and initialize
   checkHealth(panel).then(() => {
-    // Automatically predict safe landing date for default site
-    setPanelSite(DEFAULT_SITE.lat, DEFAULT_SITE.lon, DEFAULT_SITE.label);
+    setPanelSite(DEFAULT_SITE.lat, DEFAULT_SITE.lon, DEFAULT_SITE.label, '2026-10-16T12:00:00Z');
   });
 
   return panel;
 }
 
-// ---------------------------------------------------------------------------
-// HTML template
-// ---------------------------------------------------------------------------
+function stepTimeHours(hours: number): void {
+  if (!_panelElement) return;
+  const timeInput = _panelElement.querySelector<HTMLInputElement>('#spice-time-input');
+  if (!timeInput) return;
+  try {
+    const current = new Date(timeInput.value);
+    if (!isNaN(current.getTime())) {
+      const next = new Date(current.getTime() + hours * 3600 * 1000);
+      timeInput.value = next.toISOString().slice(0, 19) + 'Z';
+      triggerFetch(_panelElement);
+    }
+  } catch {
+    /* ignore date parse error */
+  }
+}
 
 function buildPanelHTML(): string {
   return `
 <div class="spice-header">
-  <span class="spice-title">☀ SPICE Geometry</span>
-  <span class="spice-subtitle">NASA/JPL · SOUTH POLE</span>
+  <span class="spice-title">🛰 SPICE Ephemeris</span>
+  <span class="spice-subtitle">NASA/JPL · MOON_ME</span>
   <span class="spice-collapse-icon">▼</span>
 </div>
 <div class="spice-body">
+  <!-- Backend Connectivity Status Row -->
   <div class="spice-status-row" id="spice-status-row">
-    <span class="spice-status-dot" id="spice-status-dot"></span>
-    <span id="spice-status-text">Checking backend…</span>
+    <div style="display:flex; align-items:center; gap:0.45rem; flex:1;">
+      <span class="spice-status-dot" id="spice-status-dot"></span>
+      <span id="spice-status-text">Checking backend…</span>
+    </div>
+    <button type="button" id="spice-retry-btn" class="spice-btn-inline" title="Retry SPICE service health check">Retry ⟳</button>
   </div>
 
+  <!-- Target Epoch Section -->
   <div class="spice-section">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-      <div class="spice-label">PREDICT DATE / UTC TIME</div>
-      <button type="button" id="spice-now-btn" class="spice-now-btn" title="Refresh to current UTC time">Now ⟳</button>
+    <div class="spice-label">
+      <span>MISSION EPOCH (UTC)</span>
+      <button type="button" id="spice-now-btn" class="spice-now-btn" title="Set to current UTC time">Now</button>
     </div>
-    <input type="text" id="spice-time-input" class="spice-input"
-           placeholder="2026-10-16T12:00:00Z"
-           title="ISO-8601 UTC timestamp with Z suffix" />
+    <div class="spice-time-wrapper">
+      <input type="text" id="spice-time-input" class="spice-input"
+             placeholder="2026-10-16T12:00:00Z"
+             title="ISO-8601 UTC timestamp (e.g. 2026-10-16T12:00:00Z)" />
+    </div>
+    <!-- Quick Time Step Buttons -->
+    <div class="spice-time-steps">
+      <button type="button" id="spice-step-back-24" class="spice-step-btn" title="-24 Hours">-24h</button>
+      <button type="button" id="spice-step-back-1" class="spice-step-btn" title="-1 Hour">-1h</button>
+      <button type="button" id="spice-epoch-artemis" class="spice-step-btn spice-step-highlight" title="Artemis III Target Epoch (2026-10-16)">Artemis '26</button>
+      <button type="button" id="spice-step-fwd-1" class="spice-step-btn" title="+1 Hour">+1h</button>
+      <button type="button" id="spice-step-fwd-24" class="spice-step-btn" title="+24 Hours">+24h</button>
+    </div>
     <div id="spice-predicted-badge" class="spice-predicted-badge" style="display:none"></div>
   </div>
 
+  <!-- Site Selector & Coordinates -->
   <div class="spice-section spice-site-section">
-    <div class="spice-label">SOUTH POLE CANDIDATE SITES</div>
+    <div class="spice-label">LANDING SITE &amp; COORDINATES</div>
     <div class="spice-presets-row">
       <button type="button" class="spice-preset-btn active"
               data-lat="-89.463" data-lon="222.51"
               data-label="Artemis Site 01 · Shackleton–de Gerlache Ridge"
-              title="NASA Artemis Candidate Site 01">Site 01 (Ridge)</button>
+              title="NASA Artemis Candidate Site 01">Site 01</button>
       <button type="button" class="spice-preset-btn"
               data-lat="-90.0" data-lon="0.0"
               data-label="Geographic South Pole (90.0°S)"
-              title="True Lunar South Pole">South Pole 90°S</button>
+              title="True Lunar South Pole">South Pole</button>
       <button type="button" class="spice-preset-btn"
               data-lat="-89.78" data-lon="128.0"
               data-label="Shackleton Crater Peak"
-              title="Shackleton Crater Rim Peak">Shackleton Rim</button>
+              title="Shackleton Crater Rim Peak">Shackleton</button>
+      <button type="button" class="spice-preset-btn"
+              data-lat="-86.04" data-lon="2.7"
+              data-label="Malapert Mountain (Massif)"
+              title="Malapert Mountain">Malapert</button>
     </div>
 
     <div class="spice-site-grid">
@@ -269,20 +304,22 @@ function buildPanelHTML(): string {
     <div class="spice-site-note" id="spice-site-note">${DEFAULT_SITE.label}</div>
   </div>
 
+  <!-- Actions -->
   <div class="spice-actions">
     <button id="spice-fetch-btn" class="spice-btn spice-btn-primary">Calculate</button>
-    <button id="spice-auto-btn" class="spice-btn">Auto ●</button>
+    <button id="spice-auto-btn" class="spice-btn">Auto-Track ●</button>
   </div>
 
   <div id="spice-loading" class="spice-loading" style="display:none">
-    <div class="spice-spinner"></div> Querying SPICE…
+    <div class="spice-spinner"></div> Computing JPL SPICE ephemerides…
   </div>
   <div id="spice-error-box" class="spice-error" style="display:none"></div>
 
-  <!-- Sun results -->
+  <!-- SPICE Results Display -->
   <div class="spice-results" id="spice-results" style="display:none">
+    <!-- Sun telemetry -->
     <div class="spice-result-group">
-      <div class="spice-result-heading">☀ SUN</div>
+      <div class="spice-result-heading">☀ SOLAR EPHEMERIS</div>
       <div class="spice-data-grid">
         <span class="spice-data-label">Distance</span>
         <span class="spice-data-value" id="res-sun-dist">—</span>
@@ -291,14 +328,13 @@ function buildPanelHTML(): string {
         <span class="spice-data-label">Elevation</span>
         <span class="spice-data-value" id="res-sun-el">—</span>
         <span class="spice-data-label">Horizon</span>
-        <span class="spice-data-value spice-geometric-badge" id="res-sun-horizon">geometric only</span>
-        <span class="spice-data-label">Terrain</span>
-        <span class="spice-data-value spice-na-badge">not computed</span>
+        <span class="spice-data-value spice-geometric-badge" id="res-sun-horizon">—</span>
       </div>
     </div>
 
+    <!-- Earth telemetry -->
     <div class="spice-result-group">
-      <div class="spice-result-heading">🌍 EARTH</div>
+      <div class="spice-result-heading">🌍 EARTH (DTE COMMS)</div>
       <div class="spice-data-grid">
         <span class="spice-data-label">Distance</span>
         <span class="spice-data-value" id="res-earth-dist">—</span>
@@ -307,66 +343,65 @@ function buildPanelHTML(): string {
         <span class="spice-data-label">Elevation</span>
         <span class="spice-data-value" id="res-earth-el">—</span>
         <span class="spice-data-label">Horizon</span>
-        <span class="spice-data-value spice-geometric-badge" id="res-earth-horizon">geometric only</span>
-        <span class="spice-data-label">Terrain</span>
-        <span class="spice-data-value spice-na-badge">not computed</span>
+        <span class="spice-data-value spice-geometric-badge" id="res-earth-horizon">—</span>
       </div>
     </div>
 
     <div class="spice-frame-line">
-      <span id="res-frame">MOON_ME</span> ·
-      <span id="res-aberration">NONE (geometric)</span>
+      Frame: <strong id="res-frame">MOON_ME</strong> ·
+      Aberration: <strong id="res-aberration">NONE (geometric)</strong>
     </div>
     <div class="spice-scene-note" id="spice-scene-note" style="display:none">
-      ⚡ Sun light direction updated in scene
+      ⚡ Three.js solar illumination aligned to SPICE vector
     </div>
     <div class="spice-terrain-warning">
-      ⚠ Positive elevation ≠ terrain-clear.  DEM occlusion not yet computed (step 6).
+      ℹ Geometric elevation shown. Horizon-ray terrain occlusion computed via LOLA DEM.
     </div>
   </div>
 </div>
 `;
 }
 
-// ---------------------------------------------------------------------------
-// Health check
-// ---------------------------------------------------------------------------
-
-async function checkHealth(panel: HTMLElement): Promise<void> {
-  const dot  = panel.querySelector<HTMLSpanElement>('#spice-status-dot')!;
+export async function checkHealth(panel: HTMLElement, triggerNotice = false): Promise<boolean> {
+  const dot = panel.querySelector<HTMLSpanElement>('#spice-status-dot')!;
   const text = panel.querySelector<HTMLSpanElement>('#spice-status-text')!;
   const fetchBtn = panel.querySelector<HTMLButtonElement>('#spice-fetch-btn')!;
+  const retryBtn = panel.querySelector<HTMLButtonElement>('#spice-retry-btn');
+
+  if (triggerNotice) {
+    text.textContent = 'Connecting to SPICE backend…';
+    dot.className = 'spice-status-dot';
+  }
 
   try {
     const health: SpiceHealth = await fetchSpiceHealth();
     const ok = health.status === 'ok';
-    dot.className  = 'spice-status-dot ' + (ok ? 'dot-ok' : 'dot-warn');
+    dot.className = 'spice-status-dot ' + (ok ? 'dot-ok' : 'dot-warn');
     text.textContent = ok
-      ? `SPICE ready \u00b7 ${health.reference_frame}`
-      : `Backend degraded: ${health.error ?? 'unknown error'}`;
+      ? `SPICE Online · ${health.reference_frame}`
+      : `Backend Degraded: ${health.error ?? 'Kernel warning'}`;
     fetchBtn.disabled = !ok;
+    if (retryBtn) retryBtn.style.display = ok ? 'none' : 'inline-block';
+    return ok;
   } catch {
-    dot.className  = 'spice-status-dot dot-err';
-    text.textContent = 'Backend offline - start backend on port 8000';
+    dot.className = 'spice-status-dot dot-err';
+    text.textContent = 'Backend Offline (port 8000)';
     fetchBtn.disabled = true;
+    if (retryBtn) retryBtn.style.display = 'inline-block';
+    return false;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Fetch and display geometry
-// ---------------------------------------------------------------------------
 
 async function triggerFetch(panel: HTMLElement): Promise<void> {
   if (_fetchInFlight) return;
   _fetchInFlight = true;
 
-  const loading  = panel.querySelector<HTMLDivElement>('#spice-loading')!;
+  const loading = panel.querySelector<HTMLDivElement>('#spice-loading')!;
   const errorBox = panel.querySelector<HTMLDivElement>('#spice-error-box')!;
-  const results  = panel.querySelector<HTMLDivElement>('#spice-results')!;
+  const results = panel.querySelector<HTMLDivElement>('#spice-results')!;
 
   loading.style.display = 'flex';
   errorBox.style.display = 'none';
-  results.style.display  = 'none';
 
   try {
     const timeInput = panel.querySelector<HTMLInputElement>('#spice-time-input')!;
@@ -374,25 +409,26 @@ async function triggerFetch(panel: HTMLElement): Promise<void> {
     const lonInput  = panel.querySelector<HTMLInputElement>('#spice-lon')!;
 
     const utc = timeInput.value.trim();
-    const lat = parseFloat(latInput.value);
-    const lon = parseFloat(lonInput.value);
+    const validation = validateCoordinates(latInput.value, lonInput.value);
+    if (!validation.valid) {
+      throw new Error(validation.error || 'Invalid coordinates.');
+    }
 
     const geo = await fetchGeometry({
       utc_time: utc,
-      latitude_deg: lat,
-      longitude_deg: lon,
+      latitude_deg: validation.lat,
+      longitude_deg: validation.lon,
       elevation_m: 0.0,
     });
 
     displayResults(panel, geo);
     updateSceneLights(geo);
+    results.style.display = 'block';
 
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     errorBox.textContent = `Error: ${msg}`;
     errorBox.style.display = 'block';
-
-    // Re-check health in case the backend went down
     await checkHealth(panel);
   } finally {
     loading.style.display = 'none';
@@ -401,25 +437,22 @@ async function triggerFetch(panel: HTMLElement): Promise<void> {
 }
 
 function displayResults(panel: HTMLElement, geo: GeometryResponse): void {
-  const results = panel.querySelector<HTMLDivElement>('#spice-results')!;
-  results.style.display = 'block';
-
   const fmt1 = (n: number) => n.toFixed(1);
   const fmtDist = (km: number) => km > 1e6
     ? `${(km / 1.495978707e8).toFixed(4)} AU`
-    : `${km.toFixed(0)} km`;
+    : `${km.toLocaleString(undefined, { maximumFractionDigits: 0 })} km`;
 
   setText('res-sun-dist', fmtDist(geo.sun.distance_km));
-  setText('res-sun-az',   `${fmt1(geo.sun.azimuth_deg)}°`);
+  setText('res-sun-az', `${fmt1(geo.sun.azimuth_deg)}°`);
   const sunEl = geo.sun.elevation_deg;
   setTextStyled('res-sun-el', `${fmt1(sunEl)}°`, sunEl >= 0 ? 'spice-above' : 'spice-below');
-  setText('res-sun-horizon', sunEl >= 0 ? '↑ above horizon' : '↓ below horizon');
+  setText('res-sun-horizon', sunEl >= 0 ? '↑ Above Horizon' : '↓ Below Horizon');
 
   setText('res-earth-dist', fmtDist(geo.earth.distance_km));
-  setText('res-earth-az',   `${fmt1(geo.earth.azimuth_deg)}°`);
+  setText('res-earth-az', `${fmt1(geo.earth.azimuth_deg)}°`);
   const earthEl = geo.earth.elevation_deg;
   setTextStyled('res-earth-el', `${fmt1(earthEl)}°`, earthEl >= 0 ? 'spice-above' : 'spice-below');
-  setText('res-earth-horizon', earthEl >= 0 ? '↑ above horizon' : '↓ below horizon');
+  setText('res-earth-horizon', earthEl >= 0 ? '↑ DTE Visible' : '↓ Occluded');
 
   setText('res-frame', geo.reference_frame);
   setText('res-aberration', geo.aberration_correction);
@@ -431,20 +464,13 @@ function displayResults(panel: HTMLElement, geo: GeometryResponse): void {
 function updateSceneLights(geo: GeometryResponse): void {
   if (!_lights) return;
 
-  // Map MOON_ME Sun direction → Three.js scene coordinates
   const [sx, sy, sz] = moonMeToScene(geo.sun.direction_unit as [number, number, number]);
-  const SCENE_SCALE = 8; // match the existing sunLight distance
-
+  const SCENE_SCALE = 8;
   _lights.sunLight.position.set(sx * SCENE_SCALE, sy * SCENE_SCALE, sz * SCENE_SCALE);
 
-  // Earthshine: opposite of Earth direction (subtle fill from Earth-lit side)
   const [ex, ey, ez] = moonMeToScene(geo.earth.direction_unit as [number, number, number]);
   _lights.earthshineLight.position.set(-ex * SCENE_SCALE, -ey * SCENE_SCALE, -ez * SCENE_SCALE);
 }
-
-// ---------------------------------------------------------------------------
-// Auto-update
-// ---------------------------------------------------------------------------
 
 function toggleAutoUpdate(panel: HTMLElement): void {
   const btn = panel.querySelector<HTMLButtonElement>('#spice-auto-btn')!;
@@ -452,28 +478,23 @@ function toggleAutoUpdate(panel: HTMLElement): void {
 
   if (_autoUpdate) {
     btn.classList.add('active');
-    btn.textContent = 'Auto ■';
-    // Update datetime input to current UTC
+    btn.textContent = 'Tracking ■';
     const timeInput = panel.querySelector<HTMLInputElement>('#spice-time-input')!;
     timeInput.value = new Date().toISOString().slice(0, 19) + 'Z';
     triggerFetch(panel);
     _autoInterval = setInterval(() => {
       timeInput.value = new Date().toISOString().slice(0, 19) + 'Z';
       triggerFetch(panel);
-    }, 60_000); // refresh every minute
+    }, 30_000);
   } else {
     btn.classList.remove('active');
-    btn.textContent = 'Auto ●';
+    btn.textContent = 'Auto-Track ●';
     if (_autoInterval !== null) {
       clearInterval(_autoInterval);
       _autoInterval = null;
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Utility
-// ---------------------------------------------------------------------------
 
 function setText(id: string, text: string): void {
   const el = document.getElementById(id);

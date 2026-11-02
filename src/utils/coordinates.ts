@@ -152,17 +152,33 @@ export function previewPixelToSelenographic(
 
 /**
  * Converts selenographic (latDeg, lonDeg) to 3D local vector on Moon mesh.
- * Note: Three.js coordinates in moonGroup are aligned so that:
- *  - Y axis = Lunar polar axis (+Y North, -Y South)
- *  - +X axis = Prime meridian (lon = 0°)
+ *
+ * Alignment with IAU MOON_ME reference frame:
+ *  - Y axis = Lunar polar axis (+Y North Pole = +90°, -Y South Pole = -90°)
+ *  - +X axis = Prime meridian (lon = 0°, Mean Earth facing)
  *  - -Z axis = East (+90°E)
+ *  - -X axis = 180° meridian (Far side)
+ *  - +Z axis = West (270°E / 90°W)
+ *
+ * Exact South Pole (-90°): returns (0, -radius, 0).
  */
 export function selenographicToMoonVector(
   latDeg: number,
   lonDeg: number,
   radius: number,
 ): THREE.Vector3 {
-  const phi = (90.0 - latDeg) * (Math.PI / 180.0);
+  // Clamp latitude to [-90, +90]
+  const clampedLat = Math.max(-90.0, Math.min(90.0, latDeg));
+
+  // At exact poles, longitude is degenerate
+  if (Math.abs(clampedLat + 90.0) < 1e-7) {
+    return new THREE.Vector3(0, -radius, 0);
+  }
+  if (Math.abs(clampedLat - 90.0) < 1e-7) {
+    return new THREE.Vector3(0, radius, 0);
+  }
+
+  const phi = (90.0 - clampedLat) * (Math.PI / 180.0);
   const theta = (lonDeg + 180.0) * (Math.PI / 180.0);
 
   const x = -radius * Math.cos(theta) * Math.sin(phi);
@@ -170,6 +186,23 @@ export function selenographicToMoonVector(
   const z = radius * Math.sin(theta) * Math.sin(phi);
 
   return new THREE.Vector3(x, y, z);
+}
+
+/**
+ * Return the exact geographic South Pole local position in Moon body-fixed space.
+ * Mathematically derived as lat = -90°, phi = pi, y = -radius, x = 0, z = 0.
+ */
+export function getGeographicSouthPole(radius: number): THREE.Vector3 {
+  return new THREE.Vector3(0, -radius, 0);
+}
+
+/**
+ * Great-circle surface distance from any latitude to the lunar South Pole in kilometers.
+ */
+export function distanceToSouthPoleKm(latDeg: number): number {
+  const colatitudeRad = (90.0 - Math.max(-90.0, Math.min(90.0, latDeg))) * (Math.PI / 180.0);
+  const polarColatRad = Math.PI - colatitudeRad;
+  return polarColatRad * LUNAR_RADIUS_KM;
 }
 
 /**
@@ -185,6 +218,14 @@ export function moonVectorToSelenographic(
   const latRad = Math.asin(Math.max(-1.0, Math.min(1.0, norm.y)));
   const latDeg = (latRad * 180.0) / Math.PI;
 
+  // At the exact poles, longitude is degenerate
+  if (latDeg <= -89.9999) {
+    return { latDeg: -90.0, lonDeg: 0.0 };
+  }
+  if (latDeg >= 89.9999) {
+    return { latDeg: 90.0, lonDeg: 0.0 };
+  }
+
   // In our spherical coordinate formulation:
   // x = +radius * cos(lat) * cos(lon)
   // z = -radius * cos(lat) * sin(lon)
@@ -197,9 +238,37 @@ export function moonVectorToSelenographic(
 }
 
 /**
+ * Validates selenographic coordinates with aerospace mission standards.
+ */
+export function validateCoordinates(
+  latInput: number | string,
+  lonInput: number | string,
+): { valid: boolean; lat: number; lon: number; error?: string } {
+  const lat = typeof latInput === 'number' ? latInput : parseFloat(latInput);
+  const lon = typeof lonInput === 'number' ? lonInput : parseFloat(lonInput);
+
+  if (isNaN(lat) || isNaN(lon)) {
+    return { valid: false, lat: 0, lon: 0, error: 'Coordinates must be valid decimal numbers.' };
+  }
+  if (lat < -90.0 || lat > 90.0) {
+    return { valid: false, lat, lon, error: 'Latitude must be between -90.0° and +90.0°.' };
+  }
+  // Normalize lon to [0, 360)
+  const normLon = ((lon % 360.0) + 360.0) % 360.0;
+
+  return { valid: true, lat, lon: normLon };
+}
+
+/**
  * Format coordinates cleanly for scientific mission display.
  */
 export function formatSelenographicCoords(latDeg: number, lonDeg: number): string {
+  if (Math.abs(latDeg + 90.0) < 0.001) {
+    return '90.000° S (True Lunar South Pole)';
+  }
+  if (Math.abs(latDeg - 90.0) < 0.001) {
+    return '90.000° N (True Lunar North Pole)';
+  }
   const latStr = `${Math.abs(latDeg).toFixed(3)}° ${latDeg < 0 ? 'S' : 'N'}`;
   const normLon = ((lonDeg % 360.0) + 360.0) % 360.0;
   const lonStr = `${normLon.toFixed(3)}° E`;
