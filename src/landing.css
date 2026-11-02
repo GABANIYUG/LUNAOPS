@@ -128,7 +128,9 @@ html, body {
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 1.4rem;
-  opacity: 1;
+  opacity: 0;
+  transform: translateY(12px);
+  will-change: opacity, transform;
 }
 
 .panel-badge-dot {
@@ -210,7 +212,9 @@ html, body {
   letter-spacing: 0.01em;
   color: var(--white-text);
   margin-bottom: 1.1rem;
-  will-change: opacity;
+  opacity: 0;
+  transform: translateY(14px);
+  will-change: opacity, transform;
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 0 20px rgba(0, 0, 0, 0.8);
 }
 
@@ -222,7 +226,9 @@ html, body {
   color: #a4bedf;
   max-width: 410px;
   margin-bottom: 1.4rem;
-  will-change: opacity;
+  opacity: 0;
+  transform: translateY(14px);
+  will-change: opacity, transform;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.95);
 }
 

@@ -1917,80 +1917,136 @@ function getLanderGroundedPos(yOffset: number = 0): THREE.Vector3 {
 // ═══════════════════════════════════════════════════════════════════
 //  UI UPDATE
 // ═══════════════════════════════════════════════════════════════════
-function updateUI(t: number, _elapsed: number) {
+let touchdownStartTime: number | null = null;
+
+function updateUI(t: number, elapsed: number) {
   const cl = Math.max(0, Math.min(1, t));
 
   // Progress strip
   const fill = document.getElementById('journey-fill');
   if (fill) fill.style.height = `${(cl * 100).toFixed(1)}%`;
 
-  // Phase badge
-  const badge = document.getElementById('panel-phase-badge');
-  if (badge) {
+  // Phase badge text
+  const badgeText = document.getElementById('panel-phase-badge');
+  if (badgeText) {
     const { phaseName } = getCameraAtT(cl);
-    badge.textContent = `SELENE LABS · NASA SPACE APPS 2026 · ${phaseName}`;
+    badgeText.textContent = `SELENE LABS · NASA SPACE APPS 2026 · ${phaseName}`;
   }
 
-  // Left panel visibility
+  // Left panel container visibility:
+  // Phase 1 (Earth departure): visible from 0.00 to 0.20, fades out by 0.26
+  // Transit & Descent: completely hidden (opacity 0)
+  // Phase 2 (Touchdown on Moon): reveals at touchdown (cl >= touchdownT)
   const leftPanel = document.getElementById('left-panel');
   if (leftPanel) {
-    if (cl >= SHOTS.s2_departure && cl < SHOTS.s8_touchdown) {
-      const fadeOut = easeInOutCubic(Math.max(0, Math.min(1, (cl - SHOTS.s2_departure) / 0.08)));
-      leftPanel.style.opacity = String(1 - fadeOut);
-    } else if (cl >= SHOTS.s8_touchdown) {
-      const pIn = easeInOutCubic(Math.max(0, Math.min(1, (cl - SHOTS.s8_touchdown) / 0.03)));
-      leftPanel.style.opacity = String(pIn);
-    } else {
+    if (cl < SHOTS.s2_departure + 0.08) {
+      if (cl >= SHOTS.s2_departure) {
+        const fadeOut = easeInOutCubic(Math.max(0, Math.min(1, (cl - SHOTS.s2_departure) / 0.08)));
+        leftPanel.style.opacity = String(1 - fadeOut);
+      } else {
+        leftPanel.style.opacity = '1';
+      }
+    } else if (cl >= SHOTS.touchdownT) {
       leftPanel.style.opacity = '1';
+    } else {
+      // Deep space transit, orbit approach, and powered descent: completely clean view
+      leftPanel.style.opacity = '0';
     }
   }
 
-  // Animated LUNAOPS letters — staggered per-letter reveal driven by scroll
-  // Each letter has its own T threshold; they cascade left-to-right as user scrolls
-  const LETTER_T  = [0.00, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18];
-  const LETTER_RANGE = 0.09;
+  // CHOREOGRAPHED TEXT REVEAL (plays both at initial scroll AND at touchdown):
+  const isTouchdown = cl >= SHOTS.touchdownT;
+  if (isTouchdown) {
+    if (touchdownStartTime === null) touchdownStartTime = elapsed;
+  } else {
+    touchdownStartTime = null;
+  }
+
+  let pBadge = 0;
+  const pLetters = [0, 0, 0, 0, 0, 0, 0];
+  let pAccent = 0;
+  let pTagline = 0;
+  let pDesc = 0;
+
+  if (isTouchdown) {
+    // Touchdown reveal: driven by scroll (0.96 -> 1.00) AND elapsed time since touchdown
+    const scrollP = Math.max(0, Math.min(1, (cl - SHOTS.touchdownT) / 0.035));
+    const timeP = touchdownStartTime !== null ? Math.max(0, Math.min(1, (elapsed - touchdownStartTime) / 2.4)) : 0;
+    const v = Math.max(scrollP, timeP);
+
+    // 1. Badge reveals
+    pBadge = easeInOutCubic(Math.max(0, Math.min(1, (v - 0.00) / 0.15)));
+
+    // 2. Letters of LUNAOPS appear one by one
+    const TOUCH_LETTER_T = [0.08, 0.16, 0.24, 0.32, 0.40, 0.48, 0.56];
+    const TOUCH_LETTER_SPAN = 0.12;
+    for (let i = 0; i < 7; i++) {
+      pLetters[i] = easeInOutCubic(Math.max(0, Math.min(1, (v - TOUCH_LETTER_T[i]) / TOUCH_LETTER_SPAN)));
+    }
+
+    // 3. Accent line sweeps across
+    pAccent = easeInOutCubic(Math.max(0, Math.min(1, (v - 0.60) / 0.15)));
+
+    // 4. Tagline fades in
+    pTagline = easeInOutCubic(Math.max(0, Math.min(1, (v - 0.70) / 0.15)));
+
+    // 5. Description fades in
+    pDesc = easeInOutCubic(Math.max(0, Math.min(1, (v - 0.80) / 0.18)));
+
+  } else if (cl < SHOTS.s2_departure + 0.10) {
+    // Earth departure reveal: driven by scroll
+    // 1. Badge reveals
+    pBadge = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.005) / 0.025)));
+
+    // 2. Letters of LUNAOPS appear one by one as user scrolls
+    const LETTER_T  = [0.020, 0.035, 0.050, 0.065, 0.080, 0.095, 0.110];
+    const LETTER_RANGE = 0.025;
+    for (let i = 0; i < 7; i++) {
+      pLetters[i] = easeInOutCubic(Math.max(0, Math.min(1, (cl - LETTER_T[i]) / LETTER_RANGE)));
+    }
+
+    // 3. Accent line sweeps across
+    pAccent = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.125) / 0.035)));
+
+    // 4. Tagline fades in
+    pTagline = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.150) / 0.040)));
+
+    // 5. Description fades in
+    pDesc = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.180) / 0.045)));
+  }
+
+  // Apply to DOM elements:
+  const badgeCard = document.getElementById('panel-badge');
+  if (badgeCard) {
+    badgeCard.style.opacity = String(pBadge);
+    badgeCard.style.transform = `translateY(${(1 - pBadge) * 12}px)`;
+  }
+
   document.querySelectorAll<HTMLElement>('.hero-letter').forEach((el, i) => {
-    const raw = Math.max(0, Math.min(1, (cl - LETTER_T[i]) / LETTER_RANGE));
-    const p   = easeInOutCubic(raw);
-    el.style.opacity   = String(p);
-    el.style.transform = `translateY(${(1 - p) * 28}px) scale(${0.85 + p * 0.15})`;
-    el.style.filter    = p > 0.02
+    const p = pLetters[i] ?? 0;
+    el.style.opacity = String(p);
+    el.style.transform = `translateY(${(1 - p) * 24}px) scale(${0.85 + p * 0.15})`;
+    el.style.filter = p > 0.02
       ? `drop-shadow(0 0 ${p * 8}px rgba(66,221,245,${(p * 0.5).toFixed(2)}))`
       : 'none';
   });
 
-  // Accent line sweeps in after last letter
   const accent = document.getElementById('accent-line');
   if (accent) {
-    const p = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.22) / 0.10)));
-    accent.style.width   = `${p * 100}%`;
-    accent.style.opacity = String(p);
+    accent.style.width   = `${pAccent * 100}%`;
+    accent.style.opacity = String(pAccent);
   }
 
-  // Tagline fades in, then fades out as camera departs
   const tagline = document.getElementById('hero-tagline');
   if (tagline) {
-    if (cl >= SHOTS.s8_touchdown) {
-      const p = easeInOutCubic(Math.max(0, Math.min(1, (cl - SHOTS.s8_touchdown) / 0.04)));
-      tagline.style.opacity = String(p);
-    } else {
-      const pIn  = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.28) / 0.10)));
-      const pOut = easeInOutCubic(Math.max(0, Math.min(1, (cl - SHOTS.s2_departure) / 0.06)));
-      tagline.style.opacity = String(pIn * (1 - pOut));
-    }
+    tagline.style.opacity = String(pTagline);
+    tagline.style.transform = `translateY(${(1 - pTagline) * 14}px)`;
   }
 
-  // Description paragraph — slightly behind tagline
   const desc = document.getElementById('hero-desc');
   if (desc) {
-    if (cl >= SHOTS.s8_touchdown) {
-      const p = easeInOutCubic(Math.max(0, Math.min(1, (cl - (SHOTS.s8_touchdown + 0.01)) / 0.04)));
-      desc.style.opacity = String(p);
-    } else {
-      const pIn  = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.32) / 0.10)));
-      const pOut = easeInOutCubic(Math.max(0, Math.min(1, (cl - (SHOTS.s2_departure + 0.01)) / 0.06)));
-      desc.style.opacity = String(pIn * (1 - pOut));
-    }
+    desc.style.opacity = String(pDesc);
+    desc.style.transform = `translateY(${(1 - pDesc) * 14}px)`;
   }
 
   // Initial scroll cue
