@@ -28,33 +28,36 @@ const SHOTS = {
   springStiffness: 60.0,
 
   // Shot boundaries [0..1]
-  s1_earth: 0.00,     // Earth opening wide
-  s2_departure: 0.20,     // Trans-lunar departure
-  s3_orbit: 0.52,     // Lunar orbit hero — full Moon
-  s4_separation: 0.64,     // Lander undocks, pole approach
-  s5_transitionDip: 0.72,     // Scene swap inside exposure dip
-  s5_surfaceIn: 0.76,     // Surface fades in
-  s6_establishing: 0.78,     // Wide establishing, lander tiny dot
-  s7_descent: 0.84,     // Powered descent, follow shot
-  s7_legsOut: 0.92,     // Legs deploy
-  s8_touchdown: 0.96,     // Contact + settle
-  s8_hold: 0.99,     // Slow push-in, status line
+  s1_earth: 0.00,        // Earth opening wide
+  s2_departure: 0.18,    // Trans-lunar departure
+  s3_transit: 0.36,      // Mid-flight deep space transit
+  s3_orbit: 0.56,        // Spacecraft reaches Moon & enters Lunar Orbit
+  s4_separation: 0.70,   // Orbiting Moon & South Pole approach
+  s5_transitionDip: 0.74,// Scene swap inside exposure dip
+  s5_surfaceIn: 0.77,    // Surface fades in
+  s6_establishing: 0.79, // Wide establishing, lander descent begins
+  s7_descent: 0.85,      // Powered descent, follow shot
+  s7_legsOut: 0.92,      // Legs deploy
+  s8_touchdown: 0.96,    // Contact + settle
+  s8_hold: 0.99,         // Slow push-in, status line
 
   // Captions
   captions: [
-    { t: 0.50, endT: 0.63, text: '400,000 KM FROM HOME' },
-    { t: 0.64, endT: 0.72, text: 'DESTINATION: LUNAR SOUTH POLE' },
-    { t: 0.76, endT: 0.83, text: 'SHACKLETON CRATER RIM · 89°54′S' },
-    { t: 0.84, endT: 0.91, text: 'POWERED DESCENT · TERMINAL PHASE' },
+    { t: 0.18, endT: 0.34, text: 'TRANS-LUNAR INJECTION · EARTH DEPARTURE' },
+    { t: 0.36, endT: 0.54, text: '400,000 KM TRANSIT · EN ROUTE TO THE MOON' },
+    { t: 0.56, endT: 0.68, text: 'LUNAR ORBIT INSERTION · SATELLITE AT THE MOON' },
+    { t: 0.69, endT: 0.76, text: 'DESTINATION: LUNAR SOUTH POLE · 89°54′S' },
+    { t: 0.79, endT: 0.84, text: 'SHACKLETON CRATER RIM · DESCENT INITIATION' },
+    { t: 0.85, endT: 0.91, text: 'POWERED DESCENT · TERMINAL PHASE' },
     { t: 0.92, endT: 0.96, text: 'TOUCHDOWN IMMINENT · ALL SYSTEMS NOMINAL' },
   ] as Array<{ t: number; endT: number; text: string }>,
 
   // Moon-to-surface crossfade timing
-  moonFadeStart: 0.72,
-  moonFadeEnd: 0.76,
+  moonFadeStart: 0.74,
+  moonFadeEnd: 0.77,
 
-  // Lander
-  landerStartT: 0.72,     // lander becomes active
+  // Lander (only starts after satellite has reached the Moon)
+  landerStartT: 0.77,     // lander becomes active
   landerDescentEnd: 0.96,     // touchdown
   touchdownT: 0.96,
   statusLineT: 0.985,
@@ -453,9 +456,9 @@ moonGroup.add(new THREE.Mesh(moonGlowGeo, moonGlowMat));
 // ═══════════════════════════════════════════════════════════════════
 //  ORBITER SPACECRAFT (shots 1-4)
 // ═══════════════════════════════════════════════════════════════════
-const CRAFT_BEZIER_START = new THREE.Vector3(26, -2, -8);
-const CRAFT_BEZIER_CTRL = new THREE.Vector3(12, 6, -14);
-const CRAFT_BEZIER_END = new THREE.Vector3(6.5, 2.0, -25);
+const CRAFT_BEZIER_START = new THREE.Vector3(25.0, -1.0, -5.0);
+const CRAFT_BEZIER_CTRL = new THREE.Vector3(14.0, 4.0, -15.0);
+const CRAFT_BEZIER_END = new THREE.Vector3(7.4, 2.0, -25.5);
 
 interface SpacecraftModel {
   group: THREE.Group;
@@ -1449,10 +1452,8 @@ overlay.id = 'ui-overlay';
 overlay.innerHTML = `
   <div class="film-grain"></div>
   <div class="vignette"></div>
-  <div class="letterbox-top"></div>
-  <div class="letterbox-bottom"></div>
 
-  <!-- Left panel (glassmorphic mission card with generous top & bottom margins) -->
+  <!-- Left panel (floating hero text without card container) -->
   <div class="left-panel" id="left-panel">
     <div class="panel-badge" id="panel-badge">
       <span class="panel-badge-dot"></span>
@@ -1674,19 +1675,19 @@ const CAM_SHOTS: CameraShot[] = [
   // Shot 1: Earth wide — classic 32mm look
   { progress: 0.00, pos: new THREE.Vector3(28, 3.5, 20), look: new THREE.Vector3(23, -1.5, -6), fov: 32, name: 'LOW EARTH ORBIT' },
   // Shot 2: Departure — pull back from Earth
-  { progress: 0.20, pos: new THREE.Vector3(18, 5.5, 16), look: new THREE.Vector3(17, 0.5, -10), fov: 30, name: 'TRANS-LUNAR DEPARTURE' },
-  // Shot 3a: Mid-flight
-  { progress: 0.38, pos: new THREE.Vector3(10, 4.5, 8), look: new THREE.Vector3(7.5, 2.0, -18), fov: 28, name: 'DEEP SPACE TRANSIT' },
-  // Shot 3b: Orbit hero — Moon right third, 35mm, slight dolly
-  { progress: 0.52, pos: new THREE.Vector3(6.0, 2.8, 0.5), look: new THREE.Vector3(4.2, 0.8, -28), fov: 35, name: 'LUNAR ORBIT INSERTION' },
-  // Shot 4: Separation, pole approach — FOV narrows
-  { progress: 0.64, pos: new THREE.Vector3(5.8, 1.5, -12), look: new THREE.Vector3(4.45, 0.2, -22), fov: 28, name: 'DESCENT ORBIT' },
+  { progress: 0.18, pos: new THREE.Vector3(18, 5.5, 16), look: new THREE.Vector3(16, 1.0, -10), fov: 30, name: 'TRANS-LUNAR DEPARTURE' },
+  // Shot 3a: Mid-flight transit
+  { progress: 0.36, pos: new THREE.Vector3(12, 4.5, 6), look: new THREE.Vector3(7.0, 2.0, -20), fov: 28, name: 'DEEP SPACE TRANSIT' },
+  // Shot 3b: Orbit hero — Moon arrival & lunar orbit insertion
+  { progress: 0.56, pos: new THREE.Vector3(6.2, 2.6, -14), look: new THREE.Vector3(4.5, 0.8, -28), fov: 34, name: 'LUNAR ORBIT INSERTION' },
+  // Shot 4: Orbiting Moon & South Pole approach
+  { progress: 0.68, pos: new THREE.Vector3(5.2, 1.6, -20), look: new THREE.Vector3(4.5, 0.5, -28), fov: 28, name: 'LUNAR DESCENT ORBIT' },
   // Shot 5: Surface transition — push in (FOV narrowing)
-  { progress: 0.76, pos: new THREE.Vector3(4.5, 1.0, -16), look: new THREE.Vector3(0.0, 0.0, 0.0), fov: 22, name: 'SURFACE APPROACH' },
+  { progress: 0.77, pos: new THREE.Vector3(4.5, 0.8, -23), look: new THREE.Vector3(4.5, -0.6, -28), fov: 22, name: 'SURFACE APPROACH' },
   // Shot 6: Establishing wide — low crane
-  { progress: 0.78, pos: new THREE.Vector3(-2.5, 1.8, 6.5), look: new THREE.Vector3(0.0, 0.0, 0.0), fov: 38, name: 'POWERED DESCENT' },
+  { progress: 0.79, pos: new THREE.Vector3(-2.5, 1.8, 6.5), look: new THREE.Vector3(0.0, 0.0, 0.0), fov: 38, name: 'POWERED DESCENT' },
   // Shot 7: Descent follow — side-low
-  { progress: 0.84, pos: new THREE.Vector3(3.8, 1.2, 5.5), look: new THREE.Vector3(0.0, 0.85, 0.0), fov: 35, name: 'FINAL APPROACH' },
+  { progress: 0.85, pos: new THREE.Vector3(3.8, 1.2, 5.5), look: new THREE.Vector3(0.0, 0.85, 0.0), fov: 35, name: 'FINAL APPROACH' },
   // Shot 7b: Leg deploy
   { progress: 0.92, pos: new THREE.Vector3(3.2, 0.8, 4.2), look: new THREE.Vector3(0.0, 0.45, 0.0), fov: 32, name: 'TOUCHDOWN IMMINENT' },
   // Shot 8: Touchdown hero — slow push-in, lander right third
@@ -1807,8 +1808,8 @@ function computeSurfaceCamera(t: number, aspect: number): { pos: THREE.Vector3; 
     return { pos, look, fov: fovV };
   }
 
-  // Establishing Wide Shot (t between 0.76 and 0.84)
-  const estP = (t - 0.76) / (SHOTS.s7_descent - 0.76);
+  // Establishing Wide Shot (t between surfaceIn and descent)
+  const estP = Math.max(0, Math.min(1, (t - SHOTS.s5_surfaceIn) / Math.max(0.001, SHOTS.s7_descent - SHOTS.s5_surfaceIn)));
   const estMargin = 2.6 - estP * 1.0;
   const dEst = (r_bound / Math.sin(effFov / 2)) * estMargin;
   const azimuth = Math.PI * 0.40;
@@ -1914,17 +1915,6 @@ function getLanderGroundedPos(yOffset: number = 0): THREE.Vector3 {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  REDUCED MOTION
-// ═══════════════════════════════════════════════════════════════════
-const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-// ═══════════════════════════════════════════════════════════════════
-//  LETTER REVEAL
-// ═══════════════════════════════════════════════════════════════════
-const LETTER_T = [0.00, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30];
-const LETTER_RANGE = 0.07;
-
-// ═══════════════════════════════════════════════════════════════════
 //  UI UPDATE
 // ═══════════════════════════════════════════════════════════════════
 function updateUI(t: number, _elapsed: number) {
@@ -1944,58 +1934,61 @@ function updateUI(t: number, _elapsed: number) {
   // Left panel visibility
   const leftPanel = document.getElementById('left-panel');
   if (leftPanel) {
-    if (cl >= SHOTS.s3_orbit && cl < SHOTS.s8_touchdown) {
-      const fadeOut = easeInOutCubic(Math.max(0, Math.min(1, (cl - SHOTS.s3_orbit) / 0.06)));
+    if (cl >= SHOTS.s2_departure && cl < SHOTS.s8_touchdown) {
+      const fadeOut = easeInOutCubic(Math.max(0, Math.min(1, (cl - SHOTS.s2_departure) / 0.08)));
       leftPanel.style.opacity = String(1 - fadeOut);
     } else if (cl >= SHOTS.s8_touchdown) {
-      const pIn = easeInOutCubic(Math.max(0, Math.min(1, (cl - SHOTS.s8_touchdown) / 0.04)));
+      const pIn = easeInOutCubic(Math.max(0, Math.min(1, (cl - SHOTS.s8_touchdown) / 0.03)));
       leftPanel.style.opacity = String(pIn);
     } else {
       leftPanel.style.opacity = '1';
     }
   }
 
-  // Animated LUNAOPS letters
+  // Animated LUNAOPS letters — staggered per-letter reveal driven by scroll
+  // Each letter has its own T threshold; they cascade left-to-right as user scrolls
+  const LETTER_T  = [0.00, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18];
+  const LETTER_RANGE = 0.09;
   document.querySelectorAll<HTMLElement>('.hero-letter').forEach((el, i) => {
-    if (reducedMotion) { el.style.opacity = '1'; el.style.transform = 'none'; return; }
     const raw = Math.max(0, Math.min(1, (cl - LETTER_T[i]) / LETTER_RANGE));
-    const p = easeInOutCubic(raw);
-    el.style.opacity = String(p);
-    el.style.transform = `translateY(${(1 - p) * 24}px) scale(${0.88 + p * 0.12})`;
-    el.style.filter = p > 0.02
-      ? `drop-shadow(0 0 ${p * 6}px rgba(56,189,248,${p * 0.38}))` : 'none';
+    const p   = easeInOutCubic(raw);
+    el.style.opacity   = String(p);
+    el.style.transform = `translateY(${(1 - p) * 28}px) scale(${0.85 + p * 0.15})`;
+    el.style.filter    = p > 0.02
+      ? `drop-shadow(0 0 ${p * 8}px rgba(66,221,245,${(p * 0.5).toFixed(2)}))`
+      : 'none';
   });
 
-  // Accent line
+  // Accent line sweeps in after last letter
   const accent = document.getElementById('accent-line');
   if (accent) {
-    const p = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.32) / 0.10)));
-    accent.style.width = `${p * 100}%`;
+    const p = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.22) / 0.10)));
+    accent.style.width   = `${p * 100}%`;
     accent.style.opacity = String(p);
   }
 
-  // Tagline
+  // Tagline fades in, then fades out as camera departs
   const tagline = document.getElementById('hero-tagline');
   if (tagline) {
     if (cl >= SHOTS.s8_touchdown) {
       const p = easeInOutCubic(Math.max(0, Math.min(1, (cl - SHOTS.s8_touchdown) / 0.04)));
       tagline.style.opacity = String(p);
     } else {
-      const pIn = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.38) / 0.10)));
-      const pOut = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.52) / 0.06)));
+      const pIn  = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.28) / 0.10)));
+      const pOut = easeInOutCubic(Math.max(0, Math.min(1, (cl - SHOTS.s2_departure) / 0.06)));
       tagline.style.opacity = String(pIn * (1 - pOut));
     }
   }
 
-  // Description
+  // Description paragraph — slightly behind tagline
   const desc = document.getElementById('hero-desc');
   if (desc) {
     if (cl >= SHOTS.s8_touchdown) {
       const p = easeInOutCubic(Math.max(0, Math.min(1, (cl - (SHOTS.s8_touchdown + 0.01)) / 0.04)));
       desc.style.opacity = String(p);
     } else {
-      const pIn = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.42) / 0.10)));
-      const pOut = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.54) / 0.06)));
+      const pIn  = easeInOutCubic(Math.max(0, Math.min(1, (cl - 0.32) / 0.10)));
+      const pOut = easeInOutCubic(Math.max(0, Math.min(1, (cl - (SHOTS.s2_departure + 0.01)) / 0.06)));
       desc.style.opacity = String(pIn * (1 - pOut));
     }
   }
@@ -2218,10 +2211,15 @@ function animate() {
   setShotVisibility(T);
 
   // ── Orbiter ──
+  // Phase 1: Trans-lunar transit — bezier path from Earth toward Moon (0.01 → s3_orbit)
+  // Phase 2: Lunar orbit — once satellite reaches the Moon it orbits (s3_orbit → s4_separation)
+  // Phase 3: Hidden (surface scene takes over)
   const orbitCurve = new THREE.QuadraticBezierCurve3(CRAFT_BEZIER_START, CRAFT_BEZIER_CTRL, CRAFT_BEZIER_END);
-  if (T >= 0.01 && T < SHOTS.s4_separation) {
+  if (T >= 0.01 && T < SHOTS.s3_orbit) {
+    // Phase 1: Satellite flying from Earth toward the Moon
     orbiter.group.visible = true;
-    const tc = Math.max(0.001, Math.min(0.999, T));
+    // Map T from [0.01 → s3_orbit] into bezier param [0 → 1]
+    const tc = Math.max(0.001, Math.min(0.999, (T - 0.01) / Math.max(0.001, SHOTS.s3_orbit - 0.01)));
     const cp = orbitCurve.getPoint(tc);
     const ct = orbitCurve.getTangent(tc).normalize();
     orbiter.group.position.copy(cp);
@@ -2230,7 +2228,8 @@ function animate() {
     orbiter.group.scale.setScalar(1.0);
     orbiter.thrusterMat.opacity = 0.20 + Math.sin(elapsed * 9) * 0.10;
     orbiter.beaconMat.opacity = Math.sin(elapsed * 4.2) > 0.88 ? 0.9 : 0.0;
-  } else if (T >= SHOTS.s3_orbit && T < SHOTS.s4_separation) {
+  } else if (T >= SHOTS.s3_orbit && T < SHOTS.moonFadeStart) {
+    // Phase 2: Satellite arrived at Moon — orbiting it (visible during lunar orbit shots)
     orbiter.group.visible = true;
     const angle = elapsed * 0.35;
     const orR = new THREE.Vector3(
@@ -2245,6 +2244,7 @@ function animate() {
     orbiter.thrusterMat.opacity = 0.22 + Math.sin(elapsed * 9) * 0.08;
     orbiter.beaconMat.opacity = Math.sin(elapsed * 4) > 0.88 ? 0.9 : 0.0;
   } else {
+    // Phase 3: Surface scene — satellite hidden
     orbiter.group.visible = false;
   }
 
