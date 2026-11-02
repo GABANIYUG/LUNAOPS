@@ -1,12 +1,12 @@
 /**
  * spiceClient.ts — LUNAOPS SPICE API client.
  *
- * Communicates with the FastAPI backend at localhost:8001.
+ * Communicates with the FastAPI backend at http://127.0.0.1:8000.
  * All data returned from these functions originates from real SPICE
  * calculations; no values are fabricated by this client.
  */
 
-export const SPICE_API_BASE = 'http://localhost:8001';
+export const SPICE_API_BASE = 'http://127.0.0.1:8000';
 
 // ---------------------------------------------------------------------------
 // Type definitions matching backend response schemas
