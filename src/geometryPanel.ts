@@ -50,8 +50,8 @@ const DEFAULT_SITE = {
   label: 'Artemis Site 01 · Shackleton–de Gerlache Ridge',
 };
 
-export async function setPanelSite(lat: number, lon: number, label: string, utcTime?: string) {
-  if (!_panelElement) return;
+export async function setPanelSite(lat: number, lon: number, label: string, utcTime?: string): Promise<boolean> {
+  if (!_panelElement) return false;
   const latInput = _panelElement.querySelector<HTMLInputElement>('#spice-lat');
   const lonInput = _panelElement.querySelector<HTMLInputElement>('#spice-lon');
   const timeInput = _panelElement.querySelector<HTMLInputElement>('#spice-time-input');
@@ -74,8 +74,7 @@ export async function setPanelSite(lat: number, lon: number, label: string, utcT
 
   if (utcTime) {
     if (timeInput) timeInput.value = utcTime;
-    triggerFetch(_panelElement);
-    return;
+    return await triggerFetch(_panelElement);
   }
 
   // Scan candidate mission window
@@ -131,7 +130,7 @@ export async function setPanelSite(lat: number, lon: number, label: string, utcT
     }
   }
 
-  triggerFetch(_panelElement);
+  return await triggerFetch(_panelElement);
 }
 
 function renderCandidateMissionWindow(
@@ -247,7 +246,7 @@ function renderCandidateMissionWindow(
 }
 
 export function setPanelTime(utcTime: string) {
-  if (!_panelElement) return;
+  if (!_panelElement) return false;
   const timeInput = _panelElement.querySelector<HTMLInputElement>('#spice-time-input');
   if (timeInput) {
     timeInput.value = utcTime;
@@ -621,8 +620,8 @@ export async function checkHealth(panel: HTMLElement, triggerNotice = false): Pr
   }
 }
 
-async function triggerFetch(panel: HTMLElement): Promise<void> {
-  if (_fetchInFlight) return;
+async function triggerFetch(panel: HTMLElement): Promise<boolean> {
+  if (_fetchInFlight) return false;
   _fetchInFlight = true;
 
   const loading = panel.querySelector<HTMLDivElement>('#spice-loading')!;
@@ -675,6 +674,7 @@ async function triggerFetch(panel: HTMLElement): Promise<void> {
     updateSceneLights(geo);
     results.style.display = 'block';
     _autoTrackErrorCount = 0;
+    return true;
 
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -689,6 +689,7 @@ async function triggerFetch(panel: HTMLElement): Promise<void> {
         pauseAutoTrack(panel, 'Auto-Track Paused: Network/SPICE error');
       }
     }
+    return false;
   } finally {
     loading.style.display = 'none';
     _fetchInFlight = false;

@@ -1,14 +1,17 @@
 /**
- * southPoleOverlay.ts — LUNAOPS High-Precision Lunar South Pole & Landing Site Overlay.
+ * southPoleOverlay.ts — LUNAOPS Precision Lunar South Pole Overlay
  *
- * Mathematically rigorous visual overlays for lunar South Polar exploration (80°S - 90°S):
- *  - Geodetic 90°S True Lunar South Pole pinpoint reticle and datum beacon
- *  - Calibrated 80°S, 85°S, and 88°S polar latitude parallels (conforming to Moon sphere)
- *  - Principal meridian axes (0° Prime / Earth-facing, 90°E, 180° Far-side, 270°E)
- *  - Actual Site 01 16x16 km 5m/px DEM footprint boundary polygon on Moon surface
- *  - Candidate landing sites (Artemis Site 01 Ridge, Shackleton Peak, Malapert, Haworth, etc.)
- *  - Interactive site markers with aerospace target beacons and telemetry hitboxes
- *  - Full resource disposal
+ * Aerospace HUD-grade 3D markers — inspired by premium mission planning interfaces.
+ *
+ * Visual identity — ZERO overlap, every marker is visually distinct:
+ *   TRUE SOUTH POLE  → cyan circle + fine crosshair arms, solid center dot
+ *   SITE 01 (primary)→ amber filled diamond + corner L-brackets + tall beacon stem
+ *   SECONDARY SITES  → per-hue single ring + tiny center dot + short stem
+ *   POLAR GRID       → three latitude parallels (80°/85°/88°S) + 4 meridian axes
+ *   DEM FOOTPRINT    → thin cyan dashed-rectangle around Site-01 high-res DEM area
+ *
+ * Sizing calibrated for south-pole camera zoom ~2.65 scene units.
+ * No constant pulsing noise — only the SELECTED element scales up slightly.
  */
 
 import * as THREE from 'three';
@@ -41,7 +44,8 @@ export const SOUTH_POLE_SITES: SiteInfo[] = [
     lat: -89.463,
     lon: 222.51,
     elevationM: 1100,
-    description: 'High-illumination ridge candidate with near-continuous solar access and direct Earth line-of-sight.',
+    description:
+      'High-illumination ridge candidate with near-continuous solar access and direct Earth line-of-sight.',
     isInsideSite01DEM: true,
     terrainResolution: '5 m/px DEM (NASA LOLA Site 01)',
     coverageType: 'High-Resolution Regional DEM',
@@ -49,11 +53,11 @@ export const SOUTH_POLE_SITES: SiteInfo[] = [
   {
     id: 'south-pole',
     name: 'Lunar South Pole',
-    designation: 'Geographic 90°00\'00" S Pole',
+    designation: "Geographic 90°00'00\" S Pole",
     lat: -90.0,
     lon: 0.0,
     elevationM: -250,
-    description: 'Intersection of all lunar meridians on the undulating rim crest of Shackleton Crater. Geodetic reference benchmark.',
+    description: 'Intersection of all lunar meridians. Geodetic reference benchmark.',
     isInsideSite01DEM: false,
     terrainResolution: 'Global LOLA Altimetry (~60 m/px)',
     coverageType: 'Global Altimetry',
@@ -61,69 +65,95 @@ export const SOUTH_POLE_SITES: SiteInfo[] = [
   },
   {
     id: 'shackleton-rim',
-    name: 'Shackleton Crater Peak',
+    name: 'Shackleton Rim',
     designation: 'Artemis Candidate Site 04',
     lat: -89.78,
     lon: 128.0,
     elevationM: 1450,
-    description: 'Elevated crater rim bordering permanently shadowed regions (PSR) with high water-ice deposition probability.',
+    description:
+      'Elevated crater rim bordering PSR with high water-ice deposition probability.',
     isInsideSite01DEM: false,
     terrainResolution: 'Global LOLA Altimetry (~60 m/px)',
     coverageType: 'Global Altimetry',
   },
   {
     id: 'malapert',
-    name: 'Malapert Mountain',
+    name: 'Malapert Massif',
     designation: 'Malapert Peak Massif (Artemis Candidate)',
     lat: -86.04,
     lon: 2.7,
     elevationM: 5000,
-    description: 'Prominent 5 km topographic massif providing extended solar visibility and continuous Direct-To-Earth comms.',
+    description:
+      'Prominent 5 km massif providing extended solar visibility and DTE comms.',
     isInsideSite01DEM: false,
     terrainResolution: 'Global LOLA Altimetry (~60 m/px)',
     coverageType: 'Global Altimetry',
   },
   {
     id: 'haworth-rim',
-    name: 'Haworth Crater Rim',
+    name: 'Haworth Rim',
     designation: 'Haworth Crater Artemis Candidate',
     lat: -87.4,
     lon: 355.0,
     elevationM: 1200,
-    description: 'Rim region flanking deep cold traps with potential volatile concentrations.',
+    description: 'Rim region flanking deep cold traps with volatile concentrations.',
     isInsideSite01DEM: false,
     terrainResolution: 'Global LOLA Altimetry (~60 m/px)',
     coverageType: 'Global Altimetry',
   },
   {
     id: 'de-gerlache-rim',
-    name: 'de Gerlache Crater Rim',
+    name: 'de Gerlache Rim',
     designation: 'de Gerlache Rim Artemis Candidate',
     lat: -88.5,
     lon: 271.0,
     elevationM: 1600,
-    description: 'Crater rim massif offering favorable low-elevation sun geometry and line-of-sight to Site 01.',
+    description: 'Crater rim offering favorable sun geometry and line-of-sight to Site 01.',
     isInsideSite01DEM: false,
     terrainResolution: 'Global LOLA Altimetry (~60 m/px)',
     coverageType: 'Global Altimetry',
   },
   {
     id: 'nobile-rim-1',
-    name: 'Nobile Crater Rim 1',
+    name: 'Nobile Rim',
     designation: 'VIPER / Artemis Candidate',
     lat: -85.2,
     lon: 35.8,
     elevationM: 3200,
-    description: 'Extensive highland plateau surveyed for robotic and crewed polar surface mobility.',
+    description:
+      'Highland plateau surveyed for robotic and crewed polar surface mobility.',
     isInsideSite01DEM: false,
     terrainResolution: 'Global LOLA Altimetry (~60 m/px)',
     coverageType: 'Global Altimetry',
   },
 ];
 
+// ── Global scale multiplier — tune here if camera zoom changes
+const S = 1.0;
+
+// ── Color palette — clearly distinct per role
+const C = {
+  POLE_RING:    0x22d3ee,  // bright cyan — geodetic datum ring
+  POLE_CROSS:   0x67e8f9,  // lighter cyan for crosshair arms
+  POLE_DOT:     0xffffff,  // white center pinpoint
+  SITE01_MAIN:  0xf59e0b,  // amber — primary mission site
+  SITE01_DIM:   0xd97706,  // darker amber when unselected
+  GRID_PRIME:   0x3b82f6,  // blue-500 prime meridian
+  GRID_SEC:     0x1e3a5f,  // dark navy secondary meridians
+  DEM_BOX:      0x38bdf8,  // sky-blue DEM footprint
+  // secondary site hues
+  SEC: {
+    'shackleton-rim':   0x38bdf8,  // cyan
+    'malapert':         0x34d399,  // emerald
+    'haworth-rim':      0xa78bfa,  // violet
+    'de-gerlache-rim':  0x60a5fa,  // blue
+    'nobile-rim-1':     0xf472b6,  // pink
+  } as Record<string, number>,
+};
+
 export class SouthPoleOverlay {
   public group: THREE.Group;
-  private animatedElements: Array<{ object: THREE.Object3D; baseScale?: number; pulseSpeed?: number }> = [];
+
   private interactiveMarkers: THREE.Object3D[] = [];
   private siteMarkerGroups: Map<string, THREE.Group> = new Map();
   private raycaster = new THREE.Raycaster();
@@ -135,13 +165,13 @@ export class SouthPoleOverlay {
     this.group = new THREE.Group();
     this.group.name = 'SouthPoleOverlay';
 
-    this.createPolarGrid(moonRadius);
-    this.createDEMFootprint(moonRadius);
-    this.createSouthPoleBeacon(moonRadius);
-    this.createLandingSites(moonRadius);
+    this._buildPolarGrid(moonRadius);
+    this._buildDEMFootprint(moonRadius);
+    this._buildSouthPoleMarker(moonRadius);
+    this._buildCandidateSites(moonRadius);
   }
 
-  public setOnSelectSite(cb: (site: SiteInfo) => void) {
+  public setOnSelectSite(cb: (site: SiteInfo) => void): void {
     this.onSelectSiteCallback = cb;
   }
 
@@ -149,358 +179,389 @@ export class SouthPoleOverlay {
     return this.interactiveMarkers;
   }
 
-  public highlightSite(siteId: string | null) {
-    this.siteMarkerGroups.forEach((group, id) => {
-      const isSelected = id === siteId;
-      const targetRing = group.getObjectByName('TargetRing') as THREE.Mesh | undefined;
-      const beaconLine = group.getObjectByName('BeaconLine') as THREE.Line | undefined;
-      const pinHead = group.getObjectByName('PinHead') as THREE.Mesh | undefined;
+  // ── Highlight selected site — brighten it, dim others ─────────
+  public highlightSite(siteId: string | null): void {
+    this.siteMarkerGroups.forEach((grp, id) => {
+      const selected = id === siteId;
 
-      if (targetRing) {
-        const mat = targetRing.material as THREE.MeshBasicMaterial;
-        mat.color.setHex(isSelected ? 0x38bdf8 : (id === 'site-01' ? 0x0ea5e9 : 0x64748b));
-        mat.opacity = isSelected ? 0.95 : 0.6;
-        targetRing.scale.setScalar(isSelected ? 1.3 : 1.0);
+      // Every marker has a 'Ring' child — scale it on selection
+      const ring = grp.getObjectByName('Ring') as THREE.Mesh | THREE.Line | undefined;
+      if (ring) {
+        ring.scale.setScalar(selected ? 1.25 : 1.0);
+        const m = (ring as THREE.Mesh).material as THREE.MeshBasicMaterial | THREE.LineBasicMaterial;
+        if (m && 'opacity' in m) m.opacity = selected ? 1.0 : _baseOpacity(id);
       }
-      if (beaconLine) {
-        const mat = beaconLine.material as THREE.LineBasicMaterial;
-        mat.color.setHex(isSelected ? 0x38bdf8 : (id === 'site-01' ? 0x0ea5e9 : 0x64748b));
-        mat.opacity = isSelected ? 0.95 : 0.5;
-      }
-      if (pinHead) {
-        const mat = pinHead.material as THREE.MeshBasicMaterial;
-        mat.color.setHex(isSelected ? 0xffffff : (id === 'site-01' ? 0x38bdf8 : 0x94a3b8));
-      }
+
+      // Dim/brighten all named sub-elements
+      ['Dot', 'Cx0', 'Cx1', 'Cx2', 'Cx3', 'Bk0', 'Bk1', 'Bk2', 'Bk3', 'Stem', 'Cap'].forEach(n => {
+        const el = grp.getObjectByName(n) as THREE.Mesh | THREE.Line | undefined;
+        if (!el) return;
+        const m = (el as THREE.Mesh).material as THREE.MeshBasicMaterial | THREE.LineBasicMaterial;
+        if (m && 'opacity' in m) m.opacity = selected ? 1.0 : _baseOpacity(id, n);
+      });
     });
   }
 
-  /**
-   * Scientific polar reference grid:
-   *  - 80°S parallel: Artemis study boundary (303 km radius)
-   *  - 85°S parallel: 152 km radius circle
-   *  - 88°S parallel: 61 km radius near-polar circle
-   *  - 0° / 180° and 90° / 270° principal meridians
-   */
-  private createPolarGrid(moonRadius: number) {
-    const gridGroup = new THREE.Group();
-    gridGroup.name = 'PolarReferenceGrid';
+  // ── Polar Reference Grid ────────────────────────────────────────
+  private _buildPolarGrid(r: number): void {
+    const grp = new THREE.Group();
+    grp.name = 'PolarGrid';
+    const rr = r * 1.0012;
 
-    // Latitude circles conforming to the 3D Moon sphere
-    const parallels = [
-      { lat: -80.0, color: 0x38bdf8, opacity: 0.35, segments: 180 },
-      { lat: -85.0, color: 0x0284c7, opacity: 0.40, segments: 180 },
-      { lat: -88.0, color: 0x0369a1, opacity: 0.30, segments: 120 },
-    ];
-
-    parallels.forEach(({ lat, color, opacity, segments }) => {
-      const points: THREE.Vector3[] = [];
-      const r = moonRadius * 1.0015; // float slightly above terrain displacement
-      for (let i = 0; i <= segments; i++) {
-        const lon = (i / segments) * 360.0;
-        points.push(selenographicToMoonVector(lat, lon, r));
-      }
-      const geo = new THREE.BufferGeometry().setFromPoints(points);
-      const mat = new THREE.LineBasicMaterial({
-        color,
-        transparent: true,
-        opacity,
-        blending: THREE.AdditiveBlending,
-      });
-      const line = new THREE.Line(geo, mat);
-      gridGroup.add(line);
+    // Latitude parallels at 80°, 85°, 88°S
+    ([
+      [-80, 0x1e40af, 0.35, 240],
+      [-85, 0x1d4ed8, 0.28, 180],
+      [-88, 0x1e3a5f, 0.20, 120],
+    ] as [number, number, number, number][]).forEach(([lat, col, op, seg]) => {
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i <= seg; i++) pts.push(selenographicToMoonVector(lat, (i / seg) * 360, rr));
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const mat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, blending: THREE.AdditiveBlending });
+      grp.add(new THREE.Line(geo, mat));
       this.disposables.push(geo, mat);
     });
 
-    // Principal polar meridians from 80°S to 89.8°S
-    const meridians = [
-      { lon: 0.0, color: 0x38bdf8, opacity: 0.55, name: 'Meridian_0_EarthFacing' },
-      { lon: 90.0, color: 0x0284c7, opacity: 0.35, name: 'Meridian_90E' },
-      { lon: 180.0, color: 0x0284c7, opacity: 0.35, name: 'Meridian_180_FarSide' },
-      { lon: 270.0, color: 0x0284c7, opacity: 0.35, name: 'Meridian_270E' },
-    ];
-
-    meridians.forEach(({ lon, color, opacity, name }) => {
-      const points: THREE.Vector3[] = [];
-      const r = moonRadius * 1.0015;
-      const steps = 40;
-      for (let i = 0; i <= steps; i++) {
-        const lat = -80.0 - (10.0 * (i / steps));
-        points.push(selenographicToMoonVector(lat, lon, r));
-      }
-      const geo = new THREE.BufferGeometry().setFromPoints(points);
-      const mat = new THREE.LineBasicMaterial({
-        color,
-        transparent: true,
-        opacity,
-        blending: THREE.AdditiveBlending,
-      });
-      const line = new THREE.Line(geo, mat);
-      line.name = name;
-      gridGroup.add(line);
+    // 4 meridian axes (0°, 90°, 180°, 270°)
+    ([
+      [0,   C.GRID_PRIME, 0.45],
+      [90,  C.GRID_SEC,   0.20],
+      [180, C.GRID_SEC,   0.20],
+      [270, C.GRID_SEC,   0.20],
+    ] as [number, number, number][]).forEach(([lon, col, op]) => {
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i <= 36; i++) pts.push(selenographicToMoonVector(-80 - 10 * (i / 36), lon, rr));
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const mat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, blending: THREE.AdditiveBlending });
+      grp.add(new THREE.Line(geo, mat));
       this.disposables.push(geo, mat);
     });
 
-    this.group.add(gridGroup);
+    this.group.add(grp);
   }
 
-  /**
-   * Actual Site 01 16x16 km 5m/px DEM footprint boundary polygon on Moon surface.
-   */
-  private createDEMFootprint(moonRadius: number) {
-    const demGroup = new THREE.Group();
-    demGroup.name = 'Site01DEMFootprint';
-
-    const r = moonRadius * 1.002;
+  // ── Site 01 DEM boundary box ────────────────────────────────────
+  private _buildDEMFootprint(r: number): void {
     const { minX, maxX, minY, maxY } = SITE01_BOUNDS;
-
-    // Subdivide the 4 edges of the bounding box to conform precisely to the Moon sphere
-    const edgePoints: Array<{ x: number; y: number }> = [];
+    const rr = r * 1.002;
     const steps = 16;
+    const edgePts: { x: number; y: number }[] = [];
+    for (let i = 0; i <= steps; i++) edgePts.push({ x: minX + (maxX - minX) * (i / steps), y: maxY });
+    for (let i = 0; i <= steps; i++) edgePts.push({ x: maxX, y: maxY + (minY - maxY) * (i / steps) });
+    for (let i = 0; i <= steps; i++) edgePts.push({ x: maxX + (minX - maxX) * (i / steps), y: minY });
+    for (let i = 0; i <= steps; i++) edgePts.push({ x: minX, y: minY + (maxY - minY) * (i / steps) });
 
-    // Top edge: (minX -> maxX, maxY)
-    for (let i = 0; i <= steps; i++) {
-      edgePoints.push({ x: minX + (maxX - minX) * (i / steps), y: maxY });
-    }
-    // Right edge: (maxX, maxY -> minY)
-    for (let i = 0; i <= steps; i++) {
-      edgePoints.push({ x: maxX, y: maxY + (minY - maxY) * (i / steps) });
-    }
-    // Bottom edge: (maxX -> minX, minY)
-    for (let i = 0; i <= steps; i++) {
-      edgePoints.push({ x: maxX + (minX - maxX) * (i / steps), y: minY });
-    }
-    // Left edge: (minX, minY -> maxY)
-    for (let i = 0; i <= steps; i++) {
-      edgePoints.push({ x: minX, y: minY + (maxY - minY) * (i / steps) });
-    }
-
-    const vectorPoints = edgePoints.map((pt) => {
+    const vPts = edgePts.map(pt => {
       const { lonDeg, latDeg } = polarStereoToSelenographic(pt.x, pt.y);
-      return selenographicToMoonVector(latDeg, lonDeg, r);
+      return selenographicToMoonVector(latDeg, lonDeg, rr);
     });
-
-    const geo = new THREE.BufferGeometry().setFromPoints(vectorPoints);
-    const mat = new THREE.LineBasicMaterial({
-      color: 0x38bdf8,
-      transparent: true,
-      opacity: 0.75,
-      linewidth: 1.5,
-    });
-    const perimeterLine = new THREE.Line(geo, mat);
-    demGroup.add(perimeterLine);
+    const geo = new THREE.BufferGeometry().setFromPoints(vPts);
+    const mat = new THREE.LineBasicMaterial({ color: C.DEM_BOX, transparent: true, opacity: 0.45 });
+    this.group.add(new THREE.Line(geo, mat));
     this.disposables.push(geo, mat);
-
-    this.group.add(demGroup);
   }
 
-  /**
-   * Geographic 90°00'00" S True Lunar South Pole Pinpoint & Geodetic Reticle
-   * Exactly anchored at (0, -moonRadius, 0) in Moon body-fixed frame.
-   */
-  private createSouthPoleBeacon(moonRadius: number) {
-    const spGroup = new THREE.Group();
-    spGroup.name = 'TrueSouthPoleMarker';
-    spGroup.position.set(0, -moonRadius, 0);
+  // ── True South Pole: cyan circle + fine crosshairs ─────────────
+  //   DISTINCT from Site 01 — different shape, different color family
+  private _buildSouthPoleMarker(moonRadius: number): void {
+    const grp = new THREE.Group();
+    grp.name = 'TrueSouthPoleMarker';
+    // Place directly at the geographic south pole
+    grp.position.set(0, -moonRadius * 1.0025, 0);
 
-    // Primary precision geodetic reticle (concentric rings in local XZ plane)
-    const ringGeo1 = new THREE.RingGeometry(0.018, 0.022, 48);
-    ringGeo1.rotateX(-Math.PI / 2);
-    const ringMat1 = new THREE.MeshBasicMaterial({
-      color: 0xf59e0b, // Scientific amber/gold for unique pole identification
+    const rR = 0.013 * S;  // ring radius
+
+    // ── Primary circle ring (not a diamond — clearly different from Site 01)
+    const ringGeo = new THREE.RingGeometry(rR, rR * 1.30, 64);
+    ringGeo.rotateX(Math.PI / 2);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: C.POLE_RING,
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
     });
-    const ring1 = new THREE.Mesh(ringGeo1, ringMat1);
-    ring1.name = 'PoleReticleRing';
-    spGroup.add(ring1);
-    this.animatedElements.push({ object: ring1, baseScale: 1.0, pulseSpeed: 2.0 });
-    this.disposables.push(ringGeo1, ringMat1);
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.name = 'Ring';
+    grp.add(ring);
+    this.disposables.push(ringGeo, ringMat);
 
-    // Inner 10 km scale reference circle
-    const ringGeo2 = new THREE.RingGeometry(0.009, 0.011, 32);
-    ringGeo2.rotateX(-Math.PI / 2);
-    const ringMat2 = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
+    // ── Outer accent ring (thinner, slightly larger)
+    const outerGeo = new THREE.RingGeometry(rR * 1.80, rR * 1.95, 64);
+    outerGeo.rotateX(Math.PI / 2);
+    const outerMat = new THREE.MeshBasicMaterial({
+      color: C.POLE_RING,
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.40,
+      blending: THREE.AdditiveBlending,
     });
-    const ring2 = new THREE.Mesh(ringGeo2, ringMat2);
-    spGroup.add(ring2);
-    this.disposables.push(ringGeo2, ringMat2);
+    grp.add(new THREE.Mesh(outerGeo, outerMat));
+    this.disposables.push(outerGeo, outerMat);
 
-    // Center pinpoint dot (mathematical pole)
-    const dotGeo = new THREE.SphereGeometry(0.004, 16, 16);
-    const dotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    // ── 4 crosshair arms (gap at center, extending beyond outer ring)
+    const cGap = rR * 0.45, cEnd = rR * 2.60;
+    ([[-1,0],[1,0],[0,-1],[0,1]] as [number,number][]).forEach(([dx, dz], i) => {
+      const geo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(dx * cGap, 0, dz * cGap),
+        new THREE.Vector3(dx * cEnd,  0, dz * cEnd),
+      ]);
+      const mat = new THREE.LineBasicMaterial({ color: C.POLE_CROSS, transparent: true, opacity: 0.75 });
+      const l = new THREE.Line(geo, mat);
+      l.name = `Cx${i}`;
+      grp.add(l);
+      this.disposables.push(geo, mat);
+    });
+
+    // ── Bright center pinpoint
+    const dotGeo = new THREE.SphereGeometry(0.0030 * S, 12, 12);
+    const dotMat = new THREE.MeshBasicMaterial({ color: C.POLE_DOT, transparent: true, opacity: 1.0 });
     const dot = new THREE.Mesh(dotGeo, dotMat);
-    spGroup.add(dot);
+    dot.name = 'Dot';
+    grp.add(dot);
     this.disposables.push(dotGeo, dotMat);
 
-    // Geodetic crosshairs (oriented with 0°-180° and 90°-270° axes)
-    const crossPoints = [
-      new THREE.Vector3(-0.035, 0, 0), new THREE.Vector3(0.035, 0, 0),
-      new THREE.Vector3(0, 0, -0.035), new THREE.Vector3(0, 0, 0.035),
-    ];
-    const crossGeo = new THREE.BufferGeometry().setFromPoints(crossPoints);
-    const crossMat = new THREE.LineSegments(crossGeo, new THREE.LineBasicMaterial({
-      color: 0xf59e0b,
-      transparent: true,
-      opacity: 0.75,
-    }));
-    spGroup.add(crossMat);
-    this.disposables.push(crossGeo, crossMat.material as THREE.Material);
-
-    // Vertical datum beacon pointing directly outward along the polar axis (-Y direction)
-    const beamGeo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(0, -0.18, 0),
-    ]);
-    const beamMat = new THREE.LineBasicMaterial({
-      color: 0xf59e0b,
-      transparent: true,
-      opacity: 0.8,
-    });
-    const beamLine = new THREE.Line(beamGeo, beamMat);
-    spGroup.add(beamLine);
-    this.disposables.push(beamGeo, beamMat);
-
-    // Interactive hitbox for mouse selection
-    const hitGeo = new THREE.SphereGeometry(0.06, 12, 12);
+    // ── Invisible hitbox for raycasting
+    const hitGeo = new THREE.SphereGeometry(0.055, 8, 8);
     const hitMat = new THREE.MeshBasicMaterial({ visible: false });
-    const hitMesh = new THREE.Mesh(hitGeo, hitMat);
-    hitMesh.userData = { site: SOUTH_POLE_SITES.find(s => s.id === 'south-pole') };
-    spGroup.add(hitMesh);
-    this.interactiveMarkers.push(hitMesh);
+    const hit = new THREE.Mesh(hitGeo, hitMat);
+    hit.userData = { site: SOUTH_POLE_SITES.find(s => s.id === 'south-pole') };
+    grp.add(hit);
+    this.interactiveMarkers.push(hit);
     this.disposables.push(hitGeo, hitMat);
 
-    this.siteMarkerGroups.set('south-pole', spGroup);
-    this.group.add(spGroup);
+    this.siteMarkerGroups.set('south-pole', grp);
+    this.group.add(grp);
   }
 
-  /**
-   * Candidate Landing Sites (Site 01, Shackleton Peak, Malapert Mountain, etc.)
-   */
-  private createLandingSites(moonRadius: number) {
-    SOUTH_POLE_SITES.forEach((site) => {
-      if (site.id === 'south-pole') return; // Handled separately above
+  // ── Candidate Landing Sites ─────────────────────────────────────
+  private _buildCandidateSites(moonRadius: number): void {
+    SOUTH_POLE_SITES.forEach(site => {
+      if (site.id === 'south-pole') return;
 
       const isPrimary = site.id === 'site-01';
-      const siteGroup = new THREE.Group();
-      siteGroup.name = `SiteMarker_${site.id}`;
+      const color = isPrimary ? C.SITE01_MAIN : (C.SEC[site.id] ?? 0x94a3b8);
 
-      // Local 3D vector on Moon surface
-      const pos = selenographicToMoonVector(site.lat, site.lon, moonRadius * 1.002);
-      siteGroup.position.copy(pos);
+      const grp = new THREE.Group();
+      grp.name = `SiteMarker_${site.id}`;
 
-      // Normal orientation radially outward
+      const pos    = selenographicToMoonVector(site.lat, site.lon, moonRadius * 1.0025);
       const normal = pos.clone().normalize();
-      siteGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+      grp.position.copy(pos);
+      grp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
 
-      const colorHex = isPrimary ? 0x38bdf8 : 0x0284c7;
+      if (isPrimary) {
+        this._buildPrimaryMarker(grp, color);
+      } else {
+        this._buildSecondaryMarker(grp, color);
+      }
 
-      // Landing zone target boundary ring
-      const ringRadius = isPrimary ? 0.024 : 0.016;
-      const ringGeo = new THREE.RingGeometry(ringRadius * 0.8, ringRadius, 32);
-      ringGeo.rotateX(Math.PI / 2);
-      const ringMat = new THREE.MeshBasicMaterial({
-        color: colorHex,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: isPrimary ? 0.9 : 0.65,
-      });
-      const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-      ringMesh.name = 'TargetRing';
-      siteGroup.add(ringMesh);
-      this.animatedElements.push({ object: ringMesh, baseScale: 1.0, pulseSpeed: isPrimary ? 2.5 : 1.5 });
-      this.disposables.push(ringGeo, ringMat);
-
-      // Vertical beacon line
-      const stemHeight = isPrimary ? 0.075 : 0.045;
-      const stemGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(0, stemHeight, 0),
-      ]);
-      const stemMat = new THREE.LineBasicMaterial({
-        color: colorHex,
-        transparent: true,
-        opacity: 0.75,
-      });
-      const beaconLine = new THREE.Line(stemGeo, stemMat);
-      beaconLine.name = 'BeaconLine';
-      siteGroup.add(beaconLine);
-      this.disposables.push(stemGeo, stemMat);
-
-      // Pinhead sphere
-      const headGeo = new THREE.SphereGeometry(isPrimary ? 0.007 : 0.005, 16, 16);
-      const headMat = new THREE.MeshBasicMaterial({
-        color: isPrimary ? 0xffffff : 0x94a3b8,
-      });
-      const pinHead = new THREE.Mesh(headGeo, headMat);
-      pinHead.name = 'PinHead';
-      pinHead.position.y = stemHeight;
-      siteGroup.add(pinHead);
-      this.disposables.push(headGeo, headMat);
-
-      // Interactive hit sphere
-      const hitGeo = new THREE.SphereGeometry(0.045, 8, 8);
+      // ── Hitbox sphere (invisible, large for easy clicking)
+      const hitGeo = new THREE.SphereGeometry(0.040, 8, 8);
       const hitMat = new THREE.MeshBasicMaterial({ visible: false });
-      const hitMesh = new THREE.Mesh(hitGeo, hitMat);
-      hitMesh.position.y = stemHeight * 0.5;
-      hitMesh.userData = { site };
-      siteGroup.add(hitMesh);
-      this.interactiveMarkers.push(hitMesh);
+      const hit = new THREE.Mesh(hitGeo, hitMat);
+      hit.position.y = 0.02;
+      hit.userData = { site };
+      grp.add(hit);
+      this.interactiveMarkers.push(hit);
       this.disposables.push(hitGeo, hitMat);
 
-      this.siteMarkerGroups.set(site.id, siteGroup);
-      this.group.add(siteGroup);
+      this.siteMarkerGroups.set(site.id, grp);
+      this.group.add(grp);
     });
   }
 
   /**
-   * Update animation loop for reticles
+   * Site 01 — amber DIAMOND (rotated 45°) + 4 corner L-brackets + tall beacon stem.
+   * Intentionally different from the True South Pole circle marker.
    */
-  public update(elapsedSec: number) {
-    this.animatedElements.forEach(({ object, baseScale = 1.0, pulseSpeed = 2.0 }) => {
-      const s = baseScale * (1.0 + 0.08 * Math.sin(elapsedSec * pulseSpeed));
-      object.scale.set(s, s, s);
+  private _buildPrimaryMarker(g: THREE.Group, color: number): void {
+    const rD = 0.018 * S;  // diamond "radius" (tip-to-center)
+
+    // ── Diamond outline (rotated 45° square)
+    const diamondPts = [
+      new THREE.Vector3(0,    0, -rD),   // top
+      new THREE.Vector3(rD,   0,   0),   // right
+      new THREE.Vector3(0,    0,  rD),   // bottom
+      new THREE.Vector3(-rD,  0,   0),   // left
+      new THREE.Vector3(0,    0, -rD),   // close
+    ];
+    const dGeo = new THREE.BufferGeometry().setFromPoints(diamondPts);
+    const dMat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.95 });
+    const diamond = new THREE.Line(dGeo, dMat);
+    diamond.name = 'Ring';
+    g.add(diamond);
+    this.disposables.push(dGeo, dMat);
+
+    // ── Filled center diamond (thicker visual weight)
+    const fillPts = [
+      new THREE.Vector3(0,    0, -rD * 0.55),
+      new THREE.Vector3(rD  * 0.55, 0, 0),
+      new THREE.Vector3(0,    0,  rD * 0.55),
+      new THREE.Vector3(-rD * 0.55, 0, 0),
+      new THREE.Vector3(0,    0, -rD * 0.55),
+    ];
+    const fGeo = new THREE.BufferGeometry().setFromPoints(fillPts);
+    const fMat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.55 });
+    g.add(new THREE.Line(fGeo, fMat));
+    this.disposables.push(fGeo, fMat);
+
+    // ── 4 corner L-brackets (outside the diamond, at axis tips ×1.9)
+    const bOff = rD * 1.90;  // offset of bracket corner
+    const bArm = rD * 0.55;  // arm length of each L
+    // brackets at ±X and ±Z tips (axis-aligned, matching diamond axes)
+    ([
+      [0, -bOff,  bArm],   // top bracket
+      [0,  bOff,  bArm],   // bottom
+      [-bOff, 0,  bArm],   // left
+      [ bOff, 0,  bArm],   // right
+    ] as const).forEach((_bracket, i) => {
+      // Each L-bracket: two arms meeting at the corner
+      const pts: THREE.Vector3[] = [];
+      if (i === 0) {
+        // top: corner at (0, -bOff), arms extend right/left and inward
+        pts.push(new THREE.Vector3(-bArm * 0.5, 0, -bOff + bArm));
+        pts.push(new THREE.Vector3(-bArm * 0.5, 0, -bOff));
+        pts.push(new THREE.Vector3( bArm * 0.5, 0, -bOff));
+        pts.push(new THREE.Vector3( bArm * 0.5, 0, -bOff + bArm));
+      } else if (i === 1) {
+        // bottom
+        pts.push(new THREE.Vector3(-bArm * 0.5, 0, bOff - bArm));
+        pts.push(new THREE.Vector3(-bArm * 0.5, 0, bOff));
+        pts.push(new THREE.Vector3( bArm * 0.5, 0, bOff));
+        pts.push(new THREE.Vector3( bArm * 0.5, 0, bOff - bArm));
+      } else if (i === 2) {
+        // left
+        pts.push(new THREE.Vector3(-bOff + bArm, 0, -bArm * 0.5));
+        pts.push(new THREE.Vector3(-bOff,         0, -bArm * 0.5));
+        pts.push(new THREE.Vector3(-bOff,         0,  bArm * 0.5));
+        pts.push(new THREE.Vector3(-bOff + bArm,  0,  bArm * 0.5));
+      } else {
+        // right
+        pts.push(new THREE.Vector3(bOff - bArm, 0, -bArm * 0.5));
+        pts.push(new THREE.Vector3(bOff,         0, -bArm * 0.5));
+        pts.push(new THREE.Vector3(bOff,         0,  bArm * 0.5));
+        pts.push(new THREE.Vector3(bOff - bArm,  0,  bArm * 0.5));
+      }
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.80 });
+      const l = new THREE.Line(geo, mat);
+      l.name = `Bk${i}`;
+      g.add(l);
+      this.disposables.push(geo, mat);
     });
+
+    // ── Center dot (bright amber)
+    const dotGeo = new THREE.SphereGeometry(0.0045 * S, 12, 12);
+    const dotMat = new THREE.MeshBasicMaterial({ color: 0xfcd34d, transparent: true, opacity: 1.0 });
+    const dot = new THREE.Mesh(dotGeo, dotMat);
+    dot.name = 'Dot';
+    g.add(dot);
+    this.disposables.push(dotGeo, dotMat);
+
+    // ── Tall beacon stem (extends upward from surface = outward from Moon)
+    const stemH = 0.085 * S;
+    const stGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, stemH, 0),
+    ]);
+    const stMat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.70, blending: THREE.AdditiveBlending });
+    const stem = new THREE.Line(stGeo, stMat);
+    stem.name = 'Stem';
+    g.add(stem);
+    this.disposables.push(stGeo, stMat);
+
+    // ── Stem cap glow
+    const capGeo = new THREE.SphereGeometry(0.0055 * S, 10, 10);
+    const capMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.90 });
+    const cap = new THREE.Mesh(capGeo, capMat);
+    cap.position.y = stemH;
+    cap.name = 'Cap';
+    g.add(cap);
+    this.disposables.push(capGeo, capMat);
   }
 
   /**
-   * Raycasting click handler for South Pole & Candidate Site markers
+   * Secondary candidates — single ring (unique hue per site) + tiny center dot + short stem.
+   * No concentric rings, no overlapping geometry.
    */
+  private _buildSecondaryMarker(g: THREE.Group, color: number): void {
+    const rR = 0.009 * S;
+
+    // ── Single clean ring (filled, not just outline)
+    const ringGeo = new THREE.RingGeometry(rR, rR * 1.45, 36);
+    ringGeo.rotateX(Math.PI / 2);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.75,
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.name = 'Ring';
+    g.add(ring);
+    this.disposables.push(ringGeo, ringMat);
+
+    // ── Tiny center dot
+    const dotGeo = new THREE.SphereGeometry(0.0025 * S, 10, 10);
+    const dotMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.90 });
+    const dot = new THREE.Mesh(dotGeo, dotMat);
+    dot.name = 'Dot';
+    g.add(dot);
+    this.disposables.push(dotGeo, dotMat);
+
+    // ── Short stem
+    const stemH = 0.028 * S;
+    const stGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, stemH, 0),
+    ]);
+    const stMat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.55 });
+    const stem = new THREE.Line(stGeo, stMat);
+    stem.name = 'Stem';
+    g.add(stem);
+    this.disposables.push(stGeo, stMat);
+  }
+
+  // ── Animation tick — called from render loop ───────────────────
+  public update(_elapsedSec: number): void {
+    // Reserved for future subtle pulse if needed
+    // Currently: static markers only — no constant animation noise
+  }
+
+  // ── Raycasting ─────────────────────────────────────────────────
   public handleClick(event: MouseEvent, camera: THREE.Camera): SiteInfo | null {
-    this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    this.mouse.x =  (event.clientX / window.innerWidth)  * 2 - 1;
     this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
     this.raycaster.setFromCamera(this.mouse, camera);
-    const intersects = this.raycaster.intersectObjects(this.interactiveMarkers, false);
-
-    if (intersects.length > 0) {
-      const site = intersects[0].object.userData.site as SiteInfo;
+    const hits = this.raycaster.intersectObjects(this.interactiveMarkers, false);
+    if (hits.length > 0) {
+      const site = hits[0].object.userData.site as SiteInfo;
       if (site) {
         this.highlightSite(site.id);
-        if (this.onSelectSiteCallback) {
-          this.onSelectSiteCallback(site);
-        }
+        this.onSelectSiteCallback?.(site);
         return site;
       }
     }
     return null;
   }
 
-  /**
-   * Cleanly dispose of all geometries and materials
-   */
-  public dispose() {
-    this.disposables.forEach(d => {
-      try {
-        d.dispose();
-      } catch {
-        /* ignore */
-      }
-    });
+  public dispose(): void {
+    this.disposables.forEach(d => { try { d.dispose(); } catch { /* */ } });
     this.disposables = [];
   }
+}
+
+// ── Helper: base opacity per element type and site role ────────────
+function _baseOpacity(siteId: string, elementName = 'Ring'): number {
+  if (siteId === 'south-pole') {
+    return elementName === 'Stem' ? 0.0 : 0.80;
+  }
+  if (siteId === 'site-01') {
+    if (elementName === 'Stem' || elementName === 'Cap') return 0.55;
+    return 0.75;
+  }
+  // secondary
+  if (elementName === 'Stem') return 0.40;
+  return 0.60;
 }

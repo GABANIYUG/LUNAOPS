@@ -17,6 +17,7 @@ import {
   formatSelenographicCoords,
   validateCoordinates,
   distanceToSouthPoleKm,
+  isInsideSite01Coverage,
 } from './utils/coordinates';
 import type { LandingSiteConfig } from './types/mission';
 
@@ -37,12 +38,16 @@ let southPoleExplorer: SouthPoleExplorer | null = null;
 let missionWorkspace: MissionWorkspace | null = null;
 let candidateComparisonWorkspace: CandidateComparisonWorkspace | null = null;
 let targetSiteMarker: THREE.Group | null = null;
+let _targetSweepRing: THREE.Mesh | null = null;
+let _targetOuterHalo: THREE.Mesh | null = null;
 let hoverReticle: THREE.Group | null = null;
 let pendingSelectionMarker: THREE.Group | null = null;
 let autoRotate = false;                       // Default to stable view for scientific analysis
 let sunAngle = 0.6;                          // Radians
 let animateSun = false;
 let isSouthPoleView = false;
+let activeSiteLat = -89.463;
+let activeSiteLon = 222.51;
 let displacementData: Float32Array | null = null;
 let originalPositions: Float32Array | null = null;
 let displacedPositions: Float32Array | null = null;
@@ -609,22 +614,32 @@ hud.innerHTML = `
 </div>
 
 <!-- Manual Coordinate Entry Modal -->
-<div class="coords-modal" id="coords-modal" style="display:none;">
+<div class="coords-modal" id="coords-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="coords-modal-title">
   <div class="coords-modal-dialog">
     <div class="coords-modal-header">
-      <h3>⌖ Manual Selenographic Coordinate Entry</h3>
-      <button type="button" id="btn-close-coords-modal" class="modal-close-btn">&times;</button>
+      <div class="coords-modal-title-row">
+        <span class="coords-modal-icon">⌖</span>
+        <h3 id="coords-modal-title">Manual Selenographic Coordinate Entry</h3>
+      </div>
+      <button type="button" id="btn-close-coords-modal" class="coords-modal-close" title="Close [Esc]">&times;</button>
     </div>
     <div class="coords-modal-body">
-      <p class="coords-modal-desc">
-        Reference Datum: <strong>IAU MOON_ME Sphere (R = 1,737.4 km)</strong>.<br />
-        Latitude: -90.0° to +90.0° (South negative). Longitude: 0.0° to 360.0° (East-positive).
-      </p>
+      <div class="coords-modal-datum-box">
+        <span class="datum-badge">REFERENCE DATUM</span>
+        <div class="datum-text"><strong>IAU MOON_ME Sphere</strong> (R = 1,737.4 km)</div>
+        <div class="datum-subtext">Latitude: -90.000° to +90.000° (South negative) · Longitude: 0.00° to 360.00° (East-positive)</div>
+      </div>
       <div class="coords-form-grid">
-        <label for="manual-lat">Latitude (°)</label>
-        <input type="number" id="manual-lat" value="-89.463" min="-90" max="90" step="0.001" />
-        <label for="manual-lon">Longitude (°)</label>
-        <input type="number" id="manual-lon" value="222.51" min="0" max="360" step="0.01" />
+        <div class="coords-field">
+          <label for="manual-lat">Latitude (°)</label>
+          <input type="number" id="manual-lat" class="coords-input" value="-89.463" min="-90" max="90" step="0.001" placeholder="-89.463" />
+          <span class="coords-field-hint">-90.0° (South Pole) to +90.0° (North)</span>
+        </div>
+        <div class="coords-field">
+          <label for="manual-lon">Longitude (°)</label>
+          <input type="number" id="manual-lon" class="coords-input" value="222.51" min="0" max="360" step="0.01" placeholder="222.51" />
+          <span class="coords-field-hint">0.0° (Earth-facing) to 360.0° East</span>
+        </div>
       </div>
       <div id="coords-error-msg" class="coords-error" style="display:none;"></div>
       <div class="coords-preview-line" id="coords-preview-line">
@@ -632,8 +647,8 @@ hud.innerHTML = `
       </div>
     </div>
     <div class="coords-modal-footer">
-      <button type="button" id="btn-apply-manual-coords" class="btn-primary-action">Apply &amp; Target</button>
-      <button type="button" id="btn-cancel-manual-coords" class="btn-secondary-action">Cancel</button>
+      <button type="button" id="btn-cancel-manual-coords" class="coords-btn coords-btn-cancel">Cancel</button>
+      <button type="button" id="btn-apply-manual-coords" class="coords-btn coords-btn-apply">Apply &amp; Target ⌖</button>
     </div>
   </div>
 </div>
@@ -660,17 +675,16 @@ createGeometryPanel({ sunLight, earthshineLight });
 // ── Workspaces Integration ─────────────────────────────────────
 southPoleExplorer = new SouthPoleExplorer();
 southPoleExplorer.setOnSelect((site) => {
-  selectMissionSite({
-    name: site.name,
-    designation: site.designation,
-    latitudeDeg: site.lat,
-    longitudeDeg: site.lon,
-    elevationM: site.elevationM,
-    coordinateConvention: 'Latitude -90° to +90° (South negative); Longitude 0° to 360° East-positive',
-    referenceDatum: 'IAU Moon 2000 Sphere · MOON_ME frame',
-    isInsideSite01DEM: site.isInsideSite01DEM,
-    demDatasetName: site.isInsideSite01DEM ? 'NASA LOLA Artemis Site 01 (5 m/px)' : 'Global LOLA (~60 m/px)',
-  });
+  selectMissionSite(site, false, false);
+});
+
+southPoleExplorer.setOnApplyAndCalculate(async (site) => {
+  selectMissionSite(site, false, false);
+  return await setPanelSite(site.latitudeDeg, site.longitudeDeg, `${site.name} · ${site.designation}`);
+});
+
+southPoleExplorer.setOnRecenter((coords) => {
+  focusCameraOnCoordinates(coords.lat, coords.lon);
 });
 
 missionWorkspace = new MissionWorkspace();
@@ -717,8 +731,10 @@ missionWorkspace.setOnTimelineScrubbed((sample) => {
 });
 
 // ── Target Marker & Site Selection Handlers ────────────────────
-export function selectMissionSite(site: LandingSiteConfig, focusCamera = true) {
-  updateTargetSiteMarker(site);
+export function selectMissionSite(site: LandingSiteConfig, focusCamera = true, triggerCalculation = true) {
+  activeSiteLat = site.latitudeDeg;
+  activeSiteLon = site.longitudeDeg;
+  updateTargetSiteMarker(site, triggerCalculation);
 
   // Sync with South Pole overlay highlighting
   const matchPreset = SOUTH_POLE_SITES.find(
@@ -747,46 +763,107 @@ export function selectMissionSite(site: LandingSiteConfig, focusCamera = true) {
   }
 }
 
-function updateTargetSiteMarker(site: LandingSiteConfig) {
+function updateTargetSiteMarker(site: LandingSiteConfig, triggerCalculation = true) {
   if (!moonGroup) return;
 
   if (!targetSiteMarker) {
     targetSiteMarker = new THREE.Group();
     targetSiteMarker.name = 'TargetSiteMarker';
 
-    // Primary target ring
-    const ringGeo = new THREE.RingGeometry(0.018, 0.024, 32);
-    ringGeo.rotateX(Math.PI / 2);
-    const ringMat = new THREE.MeshBasicMaterial({
-      color: 0x38bdf8,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.95,
+    // ── Outer halo (large, slow breathe)
+    const haloGeo = new THREE.RingGeometry(0.040, 0.045, 64);
+    haloGeo.rotateX(Math.PI / 2);
+    const haloMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8, side: THREE.DoubleSide,
+      transparent: true, opacity: 0.28,
+      blending: THREE.AdditiveBlending,
     });
-    targetSiteMarker.add(new THREE.Mesh(ringGeo, ringMat));
+    _targetOuterHalo = new THREE.Mesh(haloGeo, haloMat);
+    targetSiteMarker.add(_targetOuterHalo);
 
-    // Pinpoint center
-    const dotGeo = new THREE.SphereGeometry(0.005, 16, 16);
+    // ── Sweep arc (animated rotation — shows active lock)
+    const sweepGeo = new THREE.RingGeometry(0.028, 0.032, 64, 1, 0, Math.PI * 1.3);
+    sweepGeo.rotateX(Math.PI / 2);
+    const sweepMat = new THREE.MeshBasicMaterial({
+      color: 0x7dd3fc, side: THREE.DoubleSide,
+      transparent: true, opacity: 0.70,
+      blending: THREE.AdditiveBlending,
+    });
+    _targetSweepRing = new THREE.Mesh(sweepGeo, sweepMat);
+    targetSiteMarker.add(_targetSweepRing);
+
+    // ── Mid precision ring
+    const midGeo = new THREE.RingGeometry(0.019, 0.023, 48);
+    midGeo.rotateX(Math.PI / 2);
+    const midMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8, side: THREE.DoubleSide,
+      transparent: true, opacity: 0.95,
+    });
+    targetSiteMarker.add(new THREE.Mesh(midGeo, midMat));
+
+    // ── Inner ring
+    const innerGeo = new THREE.RingGeometry(0.009, 0.012, 32);
+    innerGeo.rotateX(Math.PI / 2);
+    const innerMat = new THREE.MeshBasicMaterial({
+      color: 0x7dd3fc, side: THREE.DoubleSide,
+      transparent: true, opacity: 0.90,
+    });
+    targetSiteMarker.add(new THREE.Mesh(innerGeo, innerMat));
+
+    // ── Cross ticks (4 arms)
+    [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dx,dz]) => {
+      const pts = [
+        new THREE.Vector3(dx*0.006, 0, dz*0.006),
+        new THREE.Vector3(dx*0.016, 0, dz*0.016),
+      ];
+      const g = new THREE.BufferGeometry().setFromPoints(pts);
+      const m = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.90 });
+      targetSiteMarker!.add(new THREE.Line(g, m));
+    });
+
+    // ── Corner chevron brackets
+    const bR = 0.030, bL = 0.009;
+    [[1,-1],[-1,-1],[1,1],[-1,1]].forEach(([sx,sz]) => {
+      const cx = sx * bR * 0.707, cz = sz * bR * 0.707;
+      const pts = [
+        new THREE.Vector3(cx, 0, cz - sz * bL),
+        new THREE.Vector3(cx, 0, cz),
+        new THREE.Vector3(cx - sx * bL, 0, cz),
+      ];
+      const g = new THREE.BufferGeometry().setFromPoints(pts);
+      const m = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.85 });
+      targetSiteMarker!.add(new THREE.Line(g, m));
+    });
+
+    // ── Core pinpoint
+    const dotGeo = new THREE.SphereGeometry(0.006, 16, 16);
     const dotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
     targetSiteMarker.add(new THREE.Mesh(dotGeo, dotMat));
 
-    // Vertical beacon line
+    // ── Altitude beacon stem
     const lineGeo = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(0, 0.07, 0),
+      new THREE.Vector3(0, 0.11, 0),
     ]);
     const lineMat = new THREE.LineBasicMaterial({
-      color: 0x38bdf8,
-      transparent: true,
-      opacity: 0.9,
+      color: 0x38bdf8, transparent: true, opacity: 0.85,
+      blending: THREE.AdditiveBlending,
     });
     targetSiteMarker.add(new THREE.Line(lineGeo, lineMat));
+
+    // ── Stem cap glow
+    const capGeo = new THREE.SphereGeometry(0.009, 12, 12);
+    const capMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+    const cap = new THREE.Mesh(capGeo, capMat);
+    cap.position.y = 0.11;
+    targetSiteMarker.add(cap);
 
     moonGroup.add(targetSiteMarker);
   }
 
   const localPos = selenographicToMoonVector(site.latitudeDeg, site.longitudeDeg, MOON_RADIUS * 1.002);
   targetSiteMarker.position.copy(localPos);
+  targetSiteMarker.visible = !isSouthPoleView;
 
   const normal = localPos.clone().normalize();
   targetSiteMarker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
@@ -807,7 +884,9 @@ function updateTargetSiteMarker(site: LandingSiteConfig) {
     poleDistEl.textContent = `${dist.toFixed(1)} km to 90°S`;
   }
 
-  setPanelSite(site.latitudeDeg, site.longitudeDeg, `${site.name} · ${site.designation}`);
+  if (triggerCalculation) {
+    return setPanelSite(site.latitudeDeg, site.longitudeDeg, `${site.name} · ${site.designation}`);
+  }
 }
 
 function focusCameraOnCoordinates(latDeg: number, lonDeg: number) {
@@ -834,6 +913,9 @@ function toggleSouthPoleMode() {
       southPoleExplorer.close();
     }
   }
+
+  // Hide the global target marker when overlay is active — markers would duplicate
+  if (targetSiteMarker) targetSiteMarker.visible = !isSouthPoleView;
 
   if (isSouthPoleView) {
     // Exact geographic South Pole at (0, -MOON_RADIUS, 0) in moonGroup space
@@ -865,6 +947,7 @@ document.getElementById('btn-reset')!.addEventListener('click', () => {
   isSouthPoleView = false;
   document.getElementById('btn-south-pole')?.classList.remove('active');
   southPoleExplorer?.close();
+  if (targetSiteMarker) targetSiteMarker.visible = true;
   animateCameraTo(
     new THREE.Vector3(0, 0.2, 4.0),
     new THREE.Vector3(0, 0, 0),
@@ -908,21 +991,66 @@ document.querySelectorAll<HTMLButtonElement>('.cand-btn').forEach((btn) => {
 
 // ── Manual Coordinate Entry Dialog ─────────────────────────────
 const coordsModal = document.getElementById('coords-modal')!;
-document.getElementById('btn-manual-coords')!.addEventListener('click', () => {
-  coordsModal.style.display = 'flex';
-});
-
-document.getElementById('btn-close-coords-modal')!.addEventListener('click', () => {
-  coordsModal.style.display = 'none';
-});
-document.getElementById('btn-cancel-manual-coords')!.addEventListener('click', () => {
-  coordsModal.style.display = 'none';
-});
-
 const manualLatInput = document.getElementById('manual-lat') as HTMLInputElement;
 const manualLonInput = document.getElementById('manual-lon') as HTMLInputElement;
 const coordsErrorMsg = document.getElementById('coords-error-msg')!;
 const coordsPreviewLine = document.getElementById('coords-preview-line')!;
+
+function openCoordsModal() {
+  manualLatInput.value = activeSiteLat.toFixed(3);
+  manualLonInput.value = activeSiteLon.toFixed(2);
+  coordsErrorMsg.style.display = 'none';
+  updateManualCoordsPreview();
+  coordsModal.style.display = 'flex';
+  setTimeout(() => {
+    manualLatInput.focus();
+    manualLatInput.select();
+  }, 40);
+}
+
+function closeCoordsModal() {
+  coordsModal.style.display = 'none';
+  coordsErrorMsg.style.display = 'none';
+}
+
+function applyManualCoords() {
+  const val = validateCoordinates(manualLatInput.value, manualLonInput.value);
+  if (!val.valid) {
+    coordsErrorMsg.textContent = val.error || 'Invalid coordinates.';
+    coordsErrorMsg.style.display = 'block';
+    return;
+  }
+  closeCoordsModal();
+
+  const insideDEM = isInsideSite01Coverage(val.lon, val.lat);
+  selectMissionSite({
+    name: 'Manual Coordinate Target',
+    designation: formatSelenographicCoords(val.lat, val.lon),
+    latitudeDeg: val.lat,
+    longitudeDeg: val.lon,
+    elevationM: 0,
+    coordinateConvention: 'Latitude -90° to +90° (South negative); Longitude 0° to 360° East-positive',
+    referenceDatum: 'IAU Moon 2000 Sphere · MOON_ME frame',
+    isInsideSite01DEM: insideDEM,
+    demDatasetName: insideDEM ? 'NASA LOLA Artemis Site 01 (5 m/px)' : 'Global LOLA (~60 m/px)',
+  });
+}
+
+document.getElementById('btn-manual-coords')!.addEventListener('click', openCoordsModal);
+document.getElementById('btn-close-coords-modal')!.addEventListener('click', closeCoordsModal);
+document.getElementById('btn-cancel-manual-coords')!.addEventListener('click', closeCoordsModal);
+document.getElementById('btn-apply-manual-coords')!.addEventListener('click', applyManualCoords);
+
+// Keyboard accessibility: Escape to cancel, Enter to submit
+coordsModal.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    e.stopPropagation();
+    closeCoordsModal();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    applyManualCoords();
+  }
+});
 
 function updateManualCoordsPreview() {
   const val = validateCoordinates(manualLatInput.value, manualLonInput.value);
@@ -934,33 +1062,12 @@ function updateManualCoordsPreview() {
     const isPolar = val.lat <= -80.0;
     const dist = distanceToSouthPoleKm(val.lat);
     coordsPreviewLine.innerHTML = `Format: <strong>${formatSelenographicCoords(val.lat, val.lon)}</strong><br />` +
-      `Region: <strong>${isPolar ? 'South Polar Region (80°S-90°S)' : 'Equatorial/Mid-Latitude'}</strong> · ` +
+      `Region: <strong>${isPolar ? 'South Polar Region (80°S–90°S)' : 'Equatorial/Mid-Latitude'}</strong> · ` +
       `Distance to Pole: <strong>${dist.toFixed(1)} km</strong>`;
   }
 }
 manualLatInput.addEventListener('input', updateManualCoordsPreview);
 manualLonInput.addEventListener('input', updateManualCoordsPreview);
-
-document.getElementById('btn-apply-manual-coords')!.addEventListener('click', () => {
-  const val = validateCoordinates(manualLatInput.value, manualLonInput.value);
-  if (!val.valid) {
-    coordsErrorMsg.textContent = val.error || 'Invalid coordinates.';
-    coordsErrorMsg.style.display = 'block';
-    return;
-  }
-  coordsModal.style.display = 'none';
-
-  selectMissionSite({
-    name: 'Manual Coordinate Target',
-    designation: formatSelenographicCoords(val.lat, val.lon),
-    latitudeDeg: val.lat,
-    longitudeDeg: val.lon,
-    elevationM: 0,
-    coordinateConvention: 'Latitude -90° to +90° (South negative); Longitude 0° to 360° East-positive',
-    referenceDatum: 'IAU Moon 2000 Sphere · MOON_ME frame',
-    isInsideSite01DEM: val.lat <= -89.4 && val.lat >= -89.55 && val.lon >= 221.0 && val.lon <= 224.0,
-  });
-});
 
 // ── Direct Moon Surface Interaction with Drag vs Click Guard ───
 const raycaster = new THREE.Raycaster();
@@ -1207,6 +1314,15 @@ function animate() {
   // Update South Pole reticles & beacons
   if (southPoleOverlay) {
     southPoleOverlay.update(elapsed);
+  }
+
+  // Animate active target marker: sweep rotation + outer halo breathe
+  if (_targetSweepRing) {
+    _targetSweepRing.rotation.y = elapsed * 1.8;
+  }
+  if (_targetOuterHalo) {
+    const haloPulse = 0.22 + 0.12 * Math.sin(elapsed * 2.2);
+    (_targetOuterHalo.material as THREE.MeshBasicMaterial).opacity = haloPulse;
   }
 
   // Slow, controlled auto-rotation if enabled and user is not inspecting
