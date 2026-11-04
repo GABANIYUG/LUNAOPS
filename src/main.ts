@@ -7,6 +7,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import './style.css';
 import { createGeometryPanel, setPanelSite, setPanelTime } from './geometryPanel';
 import { SouthPoleOverlay, SOUTH_POLE_SITES } from './southPoleOverlay';
+import { SouthPoleExplorer } from './southPoleExplorer';
 import { MissionWorkspace } from './missionWorkspace';
 import { CandidateComparisonWorkspace } from './candidateComparison';
 import { moonMeToScene } from './spiceClient';
@@ -32,6 +33,7 @@ const BG_COLOR = 0x020509;
 let moonMesh: THREE.Mesh | null = null;
 let moonGroup: THREE.Group;
 let southPoleOverlay: SouthPoleOverlay | null = null;
+let southPoleExplorer: SouthPoleExplorer | null = null;
 let missionWorkspace: MissionWorkspace | null = null;
 let candidateComparisonWorkspace: CandidateComparisonWorkspace | null = null;
 let targetSiteMarker: THREE.Group | null = null;
@@ -581,7 +583,7 @@ hud.innerHTML = `
     </div>
     <div class="controls-divider"></div>
     <div class="controls-group">
-      <button id="btn-south-pole" class="btn-polar-focus" title="Focus directly on Lunar South Pole 90°S [P]">🎯 South Pole Focus</button>
+      <button id="btn-south-pole" class="btn-polar-focus" title="Open Interactive South Pole Explorer & Focus 90°S [P]">🎯 South Pole Explorer</button>
       <button id="btn-manual-coords" title="Enter manual selenographic coordinates">⌖ Enter Coords</button>
     </div>
     <div class="controls-divider"></div>
@@ -656,6 +658,21 @@ document.body.appendChild(hud);
 createGeometryPanel({ sunLight, earthshineLight });
 
 // ── Workspaces Integration ─────────────────────────────────────
+southPoleExplorer = new SouthPoleExplorer();
+southPoleExplorer.setOnSelect((site) => {
+  selectMissionSite({
+    name: site.name,
+    designation: site.designation,
+    latitudeDeg: site.lat,
+    longitudeDeg: site.lon,
+    elevationM: site.elevationM,
+    coordinateConvention: 'Latitude -90° to +90° (South negative); Longitude 0° to 360° East-positive',
+    referenceDatum: 'IAU Moon 2000 Sphere · MOON_ME frame',
+    isInsideSite01DEM: site.isInsideSite01DEM,
+    demDatasetName: site.isInsideSite01DEM ? 'NASA LOLA Artemis Site 01 (5 m/px)' : 'Global LOLA (~60 m/px)',
+  });
+});
+
 missionWorkspace = new MissionWorkspace();
 document.getElementById('btn-new-mission')!.addEventListener('click', () => {
   missionWorkspace?.toggle();
@@ -709,6 +726,9 @@ export function selectMissionSite(site: LandingSiteConfig, focusCamera = true) {
   );
   if (southPoleOverlay) {
     southPoleOverlay.highlightSite(matchPreset ? matchPreset.id : null);
+  }
+  if (southPoleExplorer) {
+    southPoleExplorer.setSelectedSite(matchPreset ? matchPreset.id : null, site.latitudeDeg, site.longitudeDeg);
   }
 
   // Sync quick-selector buttons
@@ -807,6 +827,14 @@ function toggleSouthPoleMode() {
   const btn = document.getElementById('btn-south-pole')!;
   btn.classList.toggle('active', isSouthPoleView);
 
+  if (southPoleExplorer) {
+    if (isSouthPoleView) {
+      southPoleExplorer.open();
+    } else {
+      southPoleExplorer.close();
+    }
+  }
+
   if (isSouthPoleView) {
     // Exact geographic South Pole at (0, -MOON_RADIUS, 0) in moonGroup space
     moonGroup.updateMatrixWorld(true);
@@ -836,6 +864,7 @@ document.getElementById('btn-south-pole')!.addEventListener('click', toggleSouth
 document.getElementById('btn-reset')!.addEventListener('click', () => {
   isSouthPoleView = false;
   document.getElementById('btn-south-pole')?.classList.remove('active');
+  southPoleExplorer?.close();
   animateCameraTo(
     new THREE.Vector3(0, 0.2, 4.0),
     new THREE.Vector3(0, 0, 0),

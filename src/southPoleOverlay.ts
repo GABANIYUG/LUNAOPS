@@ -5,6 +5,7 @@
  *  - Geodetic 90°S True Lunar South Pole pinpoint reticle and datum beacon
  *  - Calibrated 80°S, 85°S, and 88°S polar latitude parallels (conforming to Moon sphere)
  *  - Principal meridian axes (0° Prime / Earth-facing, 90°E, 180° Far-side, 270°E)
+ *  - Actual Site 01 16x16 km 5m/px DEM footprint boundary polygon on Moon surface
  *  - Candidate landing sites (Artemis Site 01 Ridge, Shackleton Peak, Malapert, Haworth, etc.)
  *  - Interactive site markers with aerospace target beacons and telemetry hitboxes
  *  - Full resource disposal
@@ -13,6 +14,8 @@
 import * as THREE from 'three';
 import {
   selenographicToMoonVector,
+  polarStereoToSelenographic,
+  SITE01_BOUNDS,
 } from './utils/coordinates';
 
 export interface SiteInfo {
@@ -24,6 +27,9 @@ export interface SiteInfo {
   elevationM: number;
   description: string;
   isInsideSite01DEM?: boolean;
+  terrainResolution: string;
+  coverageType: string;
+  isGeodeticDatum?: boolean;
   markerObject?: THREE.Object3D;
 }
 
@@ -37,6 +43,8 @@ export const SOUTH_POLE_SITES: SiteInfo[] = [
     elevationM: 1100,
     description: 'High-illumination ridge candidate with near-continuous solar access and direct Earth line-of-sight.',
     isInsideSite01DEM: true,
+    terrainResolution: '5 m/px DEM (NASA LOLA Site 01)',
+    coverageType: 'High-Resolution Regional DEM',
   },
   {
     id: 'south-pole',
@@ -45,8 +53,11 @@ export const SOUTH_POLE_SITES: SiteInfo[] = [
     lat: -90.0,
     lon: 0.0,
     elevationM: -250,
-    description: 'Intersection of all lunar meridians on the undulating rim crest of Shackleton Crater.',
+    description: 'Intersection of all lunar meridians on the undulating rim crest of Shackleton Crater. Geodetic reference benchmark.',
     isInsideSite01DEM: false,
+    terrainResolution: 'Global LOLA Altimetry (~60 m/px)',
+    coverageType: 'Global Altimetry',
+    isGeodeticDatum: true,
   },
   {
     id: 'shackleton-rim',
@@ -57,6 +68,8 @@ export const SOUTH_POLE_SITES: SiteInfo[] = [
     elevationM: 1450,
     description: 'Elevated crater rim bordering permanently shadowed regions (PSR) with high water-ice deposition probability.',
     isInsideSite01DEM: false,
+    terrainResolution: 'Global LOLA Altimetry (~60 m/px)',
+    coverageType: 'Global Altimetry',
   },
   {
     id: 'malapert',
@@ -67,6 +80,8 @@ export const SOUTH_POLE_SITES: SiteInfo[] = [
     elevationM: 5000,
     description: 'Prominent 5 km topographic massif providing extended solar visibility and continuous Direct-To-Earth comms.',
     isInsideSite01DEM: false,
+    terrainResolution: 'Global LOLA Altimetry (~60 m/px)',
+    coverageType: 'Global Altimetry',
   },
   {
     id: 'haworth-rim',
@@ -77,6 +92,8 @@ export const SOUTH_POLE_SITES: SiteInfo[] = [
     elevationM: 1200,
     description: 'Rim region flanking deep cold traps with potential volatile concentrations.',
     isInsideSite01DEM: false,
+    terrainResolution: 'Global LOLA Altimetry (~60 m/px)',
+    coverageType: 'Global Altimetry',
   },
   {
     id: 'de-gerlache-rim',
@@ -87,6 +104,8 @@ export const SOUTH_POLE_SITES: SiteInfo[] = [
     elevationM: 1600,
     description: 'Crater rim massif offering favorable low-elevation sun geometry and line-of-sight to Site 01.',
     isInsideSite01DEM: false,
+    terrainResolution: 'Global LOLA Altimetry (~60 m/px)',
+    coverageType: 'Global Altimetry',
   },
   {
     id: 'nobile-rim-1',
@@ -97,6 +116,8 @@ export const SOUTH_POLE_SITES: SiteInfo[] = [
     elevationM: 3200,
     description: 'Extensive highland plateau surveyed for robotic and crewed polar surface mobility.',
     isInsideSite01DEM: false,
+    terrainResolution: 'Global LOLA Altimetry (~60 m/px)',
+    coverageType: 'Global Altimetry',
   },
 ];
 
@@ -115,6 +136,7 @@ export class SouthPoleOverlay {
     this.group.name = 'SouthPoleOverlay';
 
     this.createPolarGrid(moonRadius);
+    this.createDEMFootprint(moonRadius);
     this.createSouthPoleBeacon(moonRadius);
     this.createLandingSites(moonRadius);
   }
@@ -165,9 +187,9 @@ export class SouthPoleOverlay {
 
     // Latitude circles conforming to the 3D Moon sphere
     const parallels = [
-      { lat: -80.0, color: 0x38bdf8, opacity: 0.35, segments: 180, label: '80°S Boundary' },
-      { lat: -85.0, color: 0x0284c7, opacity: 0.40, segments: 180, label: '85°S Parallel' },
-      { lat: -88.0, color: 0x0369a1, opacity: 0.30, segments: 120, label: '88°S Parallel' },
+      { lat: -80.0, color: 0x38bdf8, opacity: 0.35, segments: 180 },
+      { lat: -85.0, color: 0x0284c7, opacity: 0.40, segments: 180 },
+      { lat: -88.0, color: 0x0369a1, opacity: 0.30, segments: 120 },
     ];
 
     parallels.forEach(({ lat, color, opacity, segments }) => {
@@ -222,13 +244,62 @@ export class SouthPoleOverlay {
   }
 
   /**
+   * Actual Site 01 16x16 km 5m/px DEM footprint boundary polygon on Moon surface.
+   */
+  private createDEMFootprint(moonRadius: number) {
+    const demGroup = new THREE.Group();
+    demGroup.name = 'Site01DEMFootprint';
+
+    const r = moonRadius * 1.002;
+    const { minX, maxX, minY, maxY } = SITE01_BOUNDS;
+
+    // Subdivide the 4 edges of the bounding box to conform precisely to the Moon sphere
+    const edgePoints: Array<{ x: number; y: number }> = [];
+    const steps = 16;
+
+    // Top edge: (minX -> maxX, maxY)
+    for (let i = 0; i <= steps; i++) {
+      edgePoints.push({ x: minX + (maxX - minX) * (i / steps), y: maxY });
+    }
+    // Right edge: (maxX, maxY -> minY)
+    for (let i = 0; i <= steps; i++) {
+      edgePoints.push({ x: maxX, y: maxY + (minY - maxY) * (i / steps) });
+    }
+    // Bottom edge: (maxX -> minX, minY)
+    for (let i = 0; i <= steps; i++) {
+      edgePoints.push({ x: maxX + (minX - maxX) * (i / steps), y: minY });
+    }
+    // Left edge: (minX, minY -> maxY)
+    for (let i = 0; i <= steps; i++) {
+      edgePoints.push({ x: minX, y: minY + (maxY - minY) * (i / steps) });
+    }
+
+    const vectorPoints = edgePoints.map((pt) => {
+      const { lonDeg, latDeg } = polarStereoToSelenographic(pt.x, pt.y);
+      return selenographicToMoonVector(latDeg, lonDeg, r);
+    });
+
+    const geo = new THREE.BufferGeometry().setFromPoints(vectorPoints);
+    const mat = new THREE.LineBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.75,
+      linewidth: 1.5,
+    });
+    const perimeterLine = new THREE.Line(geo, mat);
+    demGroup.add(perimeterLine);
+    this.disposables.push(geo, mat);
+
+    this.group.add(demGroup);
+  }
+
+  /**
    * Geographic 90°00'00" S True Lunar South Pole Pinpoint & Geodetic Reticle
    * Exactly anchored at (0, -moonRadius, 0) in Moon body-fixed frame.
    */
   private createSouthPoleBeacon(moonRadius: number) {
     const spGroup = new THREE.Group();
     spGroup.name = 'TrueSouthPoleMarker';
-    // Exact mathematical south pole position
     spGroup.position.set(0, -moonRadius, 0);
 
     // Primary precision geodetic reticle (concentric rings in local XZ plane)
