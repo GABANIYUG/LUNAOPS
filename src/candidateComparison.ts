@@ -785,12 +785,19 @@ export class CandidateComparisonWorkspace {
       this.constraints.max_continuous_darkness_hours = val !== '' ? parseFloat(val) : null;
     });
 
+    // Export comparison report button
+    this.container.querySelector('#btn-export-comparison-panel')?.addEventListener('click', () => {
+      this.openExportModal();
+    });
+
     // Globe inspection buttons
     this.container.querySelectorAll('.btn-inspect-globe, .btn-mini-inspect').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
         const sc = this.scenarios.find((s) => s.id === id);
         if (sc && this.onInspectSiteOnGlobe) {
+          // Close the comparison modal so the 3D Moon becomes visible
+          this.close();
           this.onInspectSiteOnGlobe({
             name: sc.name,
             lat: sc.latitudeDeg,

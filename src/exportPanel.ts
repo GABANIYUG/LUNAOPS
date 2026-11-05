@@ -111,130 +111,82 @@ export class ExportPanel {
   private render() {
     const isMission = this.mode === 'mission';
     const title = isMission
-      ? 'Export Mission Scenario Analysis'
-      : 'Export Candidate-Site Comparison';
+      ? 'Export Mission Scenario'
+      : 'Export Candidate Comparison';
 
     const subtitle = isMission
-      ? `${this.missionContext?.scenarioName ?? 'Mission'} · ${this.missionContext?.siteName ?? 'Selected Site'} (${this.missionContext?.latitudeDeg?.toFixed(3)}°N, ${this.missionContext?.longitudeDeg?.toFixed(3)}°E)`
-      : `${this.comparisonContext?.reportTitle ?? 'Candidate Comparison'} · ${this.comparisonContext?.scenarios.length ?? 0} Scenarios`;
+      ? `${this.missionContext?.scenarioName ?? 'Mission'} · ${this.missionContext?.siteName ?? 'Selected Site'}`
+      : `${this.comparisonContext?.scenarios.length ?? 0} Candidate Scenarios · NASA SPICE & LOLA DEM`;
 
     this.container.innerHTML = `
-    <div class="mission-modal-backdrop" id="export-backdrop"></div>
     <div class="mission-modal-dialog export-dialog">
-      <!-- Header -->
+      <!-- Clean Header -->
       <div class="mission-modal-header export-dialog-header">
         <div class="mission-header-info">
-          <div class="export-kicker">LUNAOPS SCIENTIFIC REPRODUCIBILITY &amp; DATA EXPORT</div>
           <h2>📤 ${title}</h2>
           <p class="export-subtitle">${subtitle}</p>
         </div>
         <div class="mission-header-controls">
-          <button id="btn-close-export" class="modal-close-btn" title="Close Export Panel">✕</button>
+          <button id="btn-close-export" class="modal-close-btn" title="Close">✕</button>
         </div>
       </div>
 
-      <!-- Body -->
+      <!-- Clean Body -->
       <div class="mission-body export-dialog-body">
-        <!-- Scientific Disclaimer / Scope Notice -->
-        <div class="export-disclaimer-bar">
-          <span class="disclaimer-icon">⚠️</span>
-          <div>
-            <strong>Scientific Context &amp; Limitations:</strong>
-            All ephemerides are calculated via NASA SPICE DE440s ephemerides in the <code>MOON_ME</code> reference frame.
-            Terrain horizons and surface metrics use NASA LRO/LOLA DEM data where covered.
-            Results are for pre-decisional planning and comparative research only; they do <em>not</em> constitute a landing-safety or operational certification.
-          </div>
-        </div>
-
-        <!-- Format Selection Grid -->
-        <div class="export-section-title">SELECT EXPORT ARTIFACT FORMAT</div>
+        <!-- 3-Format Selection Grid -->
         <div class="export-format-grid">
           <!-- PDF Card -->
           <div class="export-format-card ${this.selectedFormat === 'pdf' ? 'selected' : ''}" data-format="pdf" id="card-fmt-pdf">
             <div class="export-fmt-icon">📄</div>
-            <div class="export-fmt-content">
-              <div class="export-fmt-head">
-                <span class="export-fmt-label">Scientific Report (PDF)</span>
-                <span class="export-tag tag-pdf">Publication Ready</span>
-              </div>
-              <p class="export-fmt-desc">
-                ${isMission
-                  ? 'Multi-page document containing executive metrics, reference frame definitions, illumination & visibility intervals, solar elevation chart, terrain slope profile, and SPICE provenance.'
-                  : 'Comprehensive comparative report with side-by-side metric tables, multi-criteria ranking results, constraint fulfillment breakdown, and synchronized visibility timelines.'}
-              </p>
-              <div class="export-fmt-meta">Engine: ReportLab v4 · Vector tables &amp; charts · Paged layout</div>
+            <div class="export-fmt-head">
+              <span class="export-fmt-label">PDF Report</span>
+              <span class="export-tag tag-pdf">Publication Ready</span>
             </div>
+            <p class="export-fmt-desc">Comprehensive executive document with side-by-side metric tables, charts &amp; rankings.</p>
           </div>
 
           <!-- CSV Card -->
           <div class="export-format-card ${this.selectedFormat === 'csv' ? 'selected' : ''}" data-format="csv" id="card-fmt-csv">
             <div class="export-fmt-icon">📊</div>
-            <div class="export-fmt-content">
-              <div class="export-fmt-head">
-                <span class="export-fmt-label">Numerical Time-Series (CSV)</span>
-                <span class="export-tag tag-csv">Explicit Units</span>
-              </div>
-              <p class="export-fmt-desc">
-                ${isMission
-                  ? 'Standardized columnar time-series with explicit units in headers: utc_iso, sun_elevation_deg, sun_azimuth_deg, sun_visibility, earth_elevation_deg, earth_azimuth_deg, direct_to_earth_visibility.'
-                  : 'Comparison summary matrix with scenario parameters, illumination percentages, Earth LOS durations, max continuous darkness, slope statistics, and MCDA scores.'}
-              </p>
-              <div class="export-fmt-meta">Format: UTF-8 RFC 4180 CSV · Scientific notation compatible</div>
+            <div class="export-fmt-head">
+              <span class="export-fmt-label">CSV Matrix</span>
+              <span class="export-tag tag-csv">Numerical Data</span>
             </div>
+            <p class="export-fmt-desc">Standardized raw telemetry matrix with explicit engineering units for Python / Excel.</p>
           </div>
 
           <!-- JSON Card -->
           <div class="export-format-card ${this.selectedFormat === 'json' ? 'selected' : ''}" data-format="json" id="card-fmt-json">
             <div class="export-fmt-icon">💾</div>
-            <div class="export-fmt-content">
-              <div class="export-fmt-head">
-                <span class="export-fmt-label">Reproducibility Manifest (JSON)</span>
-                <span class="export-tag tag-json">Machine-Readable</span>
-              </div>
-              <p class="export-fmt-desc">
-                Full scientific provenance schema: scenario parameters, reference frame definitions (MOON_ME), SPICE kernel filenames &amp; SHA-256 digests, calculation sampling, precomputed outputs, and validation coverage status.
-              </p>
-              <div class="export-fmt-meta">Standard: LUNAOPS Manifest Schema v1.0 · Strict typing</div>
+            <div class="export-fmt-head">
+              <span class="export-fmt-label">JSON Manifest</span>
+              <span class="export-tag tag-json">Reproducibility</span>
             </div>
+            <p class="export-fmt-desc">Machine-readable provenance schema containing SPICE kernel digests &amp; parameters.</p>
           </div>
         </div>
 
-        <!-- Contents Checklist -->
-        <div class="export-contents-section">
-          <div class="export-section-title">INCLUDED IN THIS EXPORT</div>
-          <div class="export-contents-list">
-            <div class="export-content-item">
-              <span class="item-check">✓</span>
-              <span><strong>Scenario Coordinates:</strong> Latitude, longitude, reference sphere elevation, instrument height (MOON_ME frame).</span>
-            </div>
-            <div class="export-content-item">
-              <span class="item-check">✓</span>
-              <span><strong>SPICE Ephemeris:</strong> DE440s solar &amp; terrestrial vectors, apparent angular radii, topocentric elevation &amp; azimuth.</span>
-            </div>
-            <div class="export-content-item">
-              <span class="item-check">✓</span>
-              <span><strong>Terrain &amp; Obstruction:</strong> NASA LOLA 5m/px DEM horizon evaluation (or explicit DEM outside-coverage notice).</span>
-            </div>
-            <div class="export-content-item">
-              <span class="item-check">✓</span>
-              <span><strong>Provenance &amp; Validation:</strong> Kernel catalog, calculation timestamps, methodology notes, and constraint configurations.</span>
-            </div>
-          </div>
+        <!-- Telemetry Coverage Badges -->
+        <div class="export-badges-row">
+          <span class="export-pill">✓ Topocentric Coordinates</span>
+          <span class="export-pill">✓ Solar &amp; Earth Vectors</span>
+          <span class="export-pill">✓ LOLA DEM Terrain</span>
+          <span class="export-pill">✓ SPICE Provenance</span>
         </div>
 
         <!-- Feedback & Status Notification -->
         ${this.renderStatus()}
       </div>
 
-      <!-- Footer -->
+      <!-- Clean Footer -->
       <div class="mission-footer export-dialog-footer">
         <div class="export-footer-left">
-          <span class="active-fmt-indicator">Selected: <strong>${this.selectedFormat.toUpperCase()}</strong></span>
+          <span class="active-fmt-indicator">Format: <strong>${this.selectedFormat.toUpperCase()}</strong></span>
         </div>
         <div class="export-footer-actions">
           <button id="btn-cancel-export" class="btn-secondary" ${this.isGenerating ? 'disabled' : ''}>Cancel</button>
           <button id="btn-generate-export" class="btn-primary btn-highlight-compare ${this.isGenerating ? 'loading' : ''}" ${this.isGenerating ? 'disabled' : ''}>
-            ${this.isGenerating ? '⏳ Generating Artifact...' : `📥 Download ${this.selectedFormat.toUpperCase()} Export`}
+            ${this.isGenerating ? '⏳ Generating...' : `📥 Download ${this.selectedFormat.toUpperCase()} Export`}
           </button>
         </div>
       </div>
@@ -268,8 +220,8 @@ export class ExportPanel {
     // Backdrop & Close
     this.container.querySelector('#btn-close-export')?.addEventListener('click', () => this.close());
     this.container.querySelector('#btn-cancel-export')?.addEventListener('click', () => this.close());
-    this.container.querySelector('#export-backdrop')?.addEventListener('click', () => {
-      if (!this.isGenerating) this.close();
+    this.container.addEventListener('click', (e) => {
+      if (e.target === this.container && !this.isGenerating) this.close();
     });
 
     // Format selection cards

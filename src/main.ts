@@ -794,16 +794,18 @@ document.getElementById('btn-compare-sites')!.addEventListener('click', () => {
 });
 
 candidateComparisonWorkspace.setOnInspectSiteOnGlobe((site) => {
+  const insideDEM = isInsideSite01Coverage(site.lon, site.lat);
   selectMissionSite({
     name: site.name,
-    designation: 'Candidate Site',
+    designation: formatSelenographicCoords(site.lat, site.lon),
     latitudeDeg: site.lat,
     longitudeDeg: site.lon,
     elevationM: site.elevationM,
     coordinateConvention: 'Latitude -90° to +90° (South negative); Longitude 0° to 360° East-positive',
     referenceDatum: 'IAU Moon 2000 Sphere · MOON_ME frame',
-    isInsideSite01DEM: site.lat <= -89.4 && site.lat >= -89.55 && site.lon >= 221.0 && site.lon <= 224.0,
-  });
+    isInsideSite01DEM: insideDEM,
+    demDatasetName: insideDEM ? 'NASA LOLA Artemis Site 01 (5 m/px)' : 'Global LOLA (~60 m/px)',
+  }, true, true);
 });
 
 missionWorkspace.setOnSiteChanged((site) => {
