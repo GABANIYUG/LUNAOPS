@@ -26,16 +26,30 @@ import {
   type HorizonVisibilityResponse,
   type LandingWindowsResponse,
 } from './spiceClient';
-import { validateCoordinates, isInsideSite01Coverage } from './utils/coordinates';
+import { validateCoordinates, isInsideSite01Coverage, formatSelenographicCoords } from './utils/coordinates';
 
 export interface PanelLights {
   sunLight: THREE.DirectionalLight;
   earthshineLight: THREE.DirectionalLight;
 }
 
+export interface GeometryPanelCallbacks {
+  onSiteInput?: (lat: number, lon: number, label: string) => void;
+  onSiteCalculate?: (lat: number, lon: number, label: string) => void;
+  onPresetSelect?: (lat: number, lon: number, label: string) => void;
+}
+
 let _lights: PanelLights | null = null;
+let _callbacks: GeometryPanelCallbacks | null = null;
 let _fetchInFlight = false;
 let _panelElement: HTMLElement | null = null;
+
+// Scan-loop guard: suppresses onSiteCalculate callback when triggerFetch is called
+// internally by setPanelSite (auto-scan), so it only fires on explicit user Calculate.
+let _suppressOnSiteCalculate = false;
+// Stale-scan guard: each setPanelSite call increments this; async scan checks it
+// before writing results so a superseded scan never overwrites the current one.
+let _scanGeneration = 0;
 
 // Auto-Track State
 let _autoTrackActive = false;
@@ -50,8 +64,23 @@ const DEFAULT_SITE = {
   label: 'Artemis Site 01 · Shackleton–de Gerlache Ridge',
 };
 
+let _lastPanelSiteLat: number | null = null;
+let _lastPanelSiteLon: number | null = null;
+
 export async function setPanelSite(lat: number, lon: number, label: string, utcTime?: string): Promise<boolean> {
   if (!_panelElement) return false;
+
+  // Prevent duplicate redundant scanning loop
+  if (!utcTime && _lastPanelSiteLat !== null && _lastPanelSiteLon !== null &&
+      Math.abs(_lastPanelSiteLat - lat) < 0.0001 && Math.abs(_lastPanelSiteLon - lon) < 0.0001) {
+    return true;
+  }
+  _lastPanelSiteLat = lat;
+  _lastPanelSiteLon = lon;
+
+  // Bump generation so any in-progress scan for a previous site is discarded when it resolves
+  const myGeneration = ++_scanGeneration;
+
   const latInput = _panelElement.querySelector<HTMLInputElement>('#spice-lat');
   const lonInput = _panelElement.querySelector<HTMLInputElement>('#spice-lon');
   const timeInput = _panelElement.querySelector<HTMLInputElement>('#spice-time-input');
@@ -74,7 +103,13 @@ export async function setPanelSite(lat: number, lon: number, label: string, utcT
 
   if (utcTime) {
     if (timeInput) timeInput.value = utcTime;
-    return await triggerFetch(_panelElement);
+    // Suppress onSiteCalculate so this internal fetch doesn't re-fire the callback chain
+    _suppressOnSiteCalculate = true;
+    try {
+      return await triggerFetch(_panelElement);
+    } finally {
+      _suppressOnSiteCalculate = false;
+    }
   }
 
   // Scan candidate mission window
@@ -99,6 +134,9 @@ export async function setPanelSite(lat: number, lon: number, label: string, utcT
       longitude_deg: lon,
     });
 
+    // Discard result if a newer setPanelSite call has already superseded this one
+    if (myGeneration !== _scanGeneration) return false;
+
     renderCandidateMissionWindow(windowCard, scan, lat, lon);
 
     // Auto-align time input to the beginning of the verified candidate window
@@ -116,6 +154,7 @@ export async function setPanelSite(lat: number, lon: number, label: string, utcT
       timeInput.value = '2026-10-16T12:00:00Z';
     }
   } catch (err) {
+    if (myGeneration !== _scanGeneration) return false;
     console.warn('[SPICE] Candidate window scan error', err);
     if (windowCard) {
       windowCard.innerHTML = `
@@ -130,7 +169,17 @@ export async function setPanelSite(lat: number, lon: number, label: string, utcT
     }
   }
 
-  return await triggerFetch(_panelElement);
+  // Final generation check: skip triggerFetch if superseded
+  if (myGeneration !== _scanGeneration) return false;
+
+  // Suppress onSiteCalculate so this auto-scan triggerFetch doesn't re-fire the callback chain.
+  // onSiteCalculate is only intended to fire when the user explicitly presses Calculate.
+  _suppressOnSiteCalculate = true;
+  try {
+    return await triggerFetch(_panelElement);
+  } finally {
+    _suppressOnSiteCalculate = false;
+  }
 }
 
 function renderCandidateMissionWindow(
@@ -254,8 +303,9 @@ export function setPanelTime(utcTime: string) {
   }
 }
 
-export function createGeometryPanel(lights: PanelLights): HTMLElement {
+export function createGeometryPanel(lights: PanelLights, callbacks?: GeometryPanelCallbacks): HTMLElement {
   _lights = lights;
+  _callbacks = callbacks || null;
 
   const panel = document.createElement('div');
   panel.id = 'spice-panel';
@@ -318,7 +368,80 @@ export function createGeometryPanel(lights: PanelLights): HTMLElement {
       setPanelSite(lat, lon, label);
       panel.querySelectorAll('.spice-preset-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      _callbacks?.onPresetSelect?.(lat, lon, label);
     });
+  });
+
+  // Manual Landing Site Coordinate Inputs
+  const latInput = panel.querySelector<HTMLInputElement>('#spice-lat');
+  const lonInput = panel.querySelector<HTMLInputElement>('#spice-lon');
+  const siteNote = panel.querySelector<HTMLDivElement>('#spice-site-note');
+
+  let siteInputDebounce: number | null = null;
+
+  const handleManualCoordInput = () => {
+    if (!latInput || !lonInput) return;
+    pauseAutoTrack(panel);
+
+    const val = validateCoordinates(latInput.value, lonInput.value);
+    if (!val.valid) return;
+
+    // Check if matches preset
+    const matchPreset = [
+      { lat: -89.463, lon: 222.51, label: 'Artemis Site 01 · Shackleton–de Gerlache Ridge' },
+      { lat: -90.0, lon: 0.0, label: 'Geographic South Pole (90.0°S · Datum)' },
+      { lat: -89.78, lon: 128.0, label: 'Shackleton Crater Peak' },
+      { lat: -86.04, lon: 2.7, label: 'Malapert Mountain (Massif)' },
+    ].find(p => Math.abs(p.lat - val.lat) < 0.05 && Math.abs(p.lon - val.lon) < 0.05);
+
+    panel.querySelectorAll<HTMLButtonElement>('.spice-preset-btn').forEach(btn => {
+      const bLat = parseFloat(btn.dataset.lat || '999');
+      const bLon = parseFloat(btn.dataset.lon || '999');
+      btn.classList.toggle('active', Math.abs(bLat - val.lat) < 0.05 && Math.abs(bLon - val.lon) < 0.05);
+    });
+
+    const label = matchPreset
+      ? matchPreset.label
+      : `Custom Lunar Target · ${formatSelenographicCoords(val.lat, val.lon)}`;
+
+    if (siteNote) {
+      siteNote.textContent = label;
+    }
+
+    _callbacks?.onSiteInput?.(val.lat, val.lon, label);
+  };
+
+  latInput?.addEventListener('input', () => {
+    if (siteInputDebounce !== null) clearTimeout(siteInputDebounce);
+    siteInputDebounce = window.setTimeout(handleManualCoordInput, 350);
+  });
+  lonInput?.addEventListener('input', () => {
+    if (siteInputDebounce !== null) clearTimeout(siteInputDebounce);
+    siteInputDebounce = window.setTimeout(handleManualCoordInput, 350);
+  });
+
+  latInput?.addEventListener('change', () => {
+    if (siteInputDebounce !== null) clearTimeout(siteInputDebounce);
+    handleManualCoordInput();
+  });
+  lonInput?.addEventListener('change', () => {
+    if (siteInputDebounce !== null) clearTimeout(siteInputDebounce);
+    handleManualCoordInput();
+  });
+
+  latInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      if (siteInputDebounce !== null) clearTimeout(siteInputDebounce);
+      handleManualCoordInput();
+      triggerFetch(panel);
+    }
+  });
+  lonInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      if (siteInputDebounce !== null) clearTimeout(siteInputDebounce);
+      handleManualCoordInput();
+      triggerFetch(panel);
+    }
   });
 
   // Manual input pause protection
@@ -623,15 +746,22 @@ export async function checkHealth(panel: HTMLElement, triggerNotice = false): Pr
 let _currentFetchPromise: Promise<boolean> | null = null;
 
 async function triggerFetch(panel: HTMLElement): Promise<boolean> {
-  // If a fetch is currently in flight, wait for it so callers do not receive a false failure
+  // If a fetch is already in flight, let it finish first (don't stack multiple requests)
   if (_fetchInFlight && _currentFetchPromise) {
     try {
       await _currentFetchPromise;
     } catch {
       /* ignore */
     }
+    // If another triggerFetch already started while we waited, bail out to avoid double-fetch
+    if (_fetchInFlight) return false;
   }
   _fetchInFlight = true;
+
+  // Snapshot the suppress flag at the moment this fetch starts so the async callback
+  // uses the value that was set by our caller (setPanelSite or Calculate button), not
+  // whatever it might be when the fetch eventually resolves.
+  const suppressCallback = _suppressOnSiteCalculate;
 
   const loading = panel.querySelector<HTMLDivElement>('#spice-loading')!;
   const errorBox = panel.querySelector<HTMLDivElement>('#spice-error-box')!;
@@ -684,6 +814,15 @@ async function triggerFetch(panel: HTMLElement): Promise<boolean> {
     updateSceneLights(geo);
     results.style.display = 'block';
     _autoTrackErrorCount = 0;
+
+    const siteNote = panel.querySelector<HTMLDivElement>('#spice-site-note');
+    const label = siteNote?.textContent || `Custom Lunar Target · ${formatSelenographicCoords(validation.lat, validation.lon)}`;
+    // Only notify the globe/workspace when explicitly triggered by the user (Calculate button),
+    // NOT when triggered automatically by setPanelSite's internal auto-scan.
+    if (!suppressCallback) {
+      _callbacks?.onSiteCalculate?.(validation.lat, validation.lon, label);
+    }
+
     return true;
 
   } catch (err: unknown) {

@@ -128,6 +128,7 @@ export class MissionWorkspace {
 
   // Canvas interaction
   private terrainCtx: CanvasRenderingContext2D | null = null;
+  private _isSyncingFromGlobe = false;
 
   // Callback to sync with 3D Moon
   private onSiteChangedCallback?: (site: LandingSiteConfig) => void;
@@ -204,27 +205,32 @@ export class MissionWorkspace {
     siteName?: string,
     designation?: string
   ) {
-    this.selectedSite.latitudeDeg = Math.round(latDeg * 1000) / 1000;
-    this.selectedSite.longitudeDeg = Math.round(lonDeg * 1000) / 1000;
+    this._isSyncingFromGlobe = true;
+    try {
+      this.selectedSite.latitudeDeg = Math.round(latDeg * 1000) / 1000;
+      this.selectedSite.longitudeDeg = Math.round(lonDeg * 1000) / 1000;
 
-    // Check if explicit candidate name provided (and not generic 'Custom')
-    if (siteName && !siteName.toLowerCase().includes('custom')) {
-      this.selectedSite.name = siteName;
-      this.selectedSite.designation = designation || 'Landing Candidate';
-    } else {
-      const match = SOUTH_POLE_SITES.find(
-        (p) => Math.abs(p.lat - latDeg) < 0.08 && Math.abs(p.lon - lonDeg) < 0.08
-      );
-      if (match) {
-        this.selectedSite.name = match.name;
-        this.selectedSite.designation = match.designation;
+      // Check if explicit candidate name provided (and not generic 'Custom')
+      if (siteName && !siteName.toLowerCase().includes('custom')) {
+        this.selectedSite.name = siteName;
+        this.selectedSite.designation = designation || 'Landing Candidate';
       } else {
-        this.selectedSite.name = siteName || 'Custom Selected Location';
-        this.selectedSite.designation = designation || 'User Chosen Site';
+        const match = SOUTH_POLE_SITES.find(
+          (p) => Math.abs(p.lat - latDeg) < 0.08 && Math.abs(p.lon - lonDeg) < 0.08
+        );
+        if (match) {
+          this.selectedSite.name = match.name;
+          this.selectedSite.designation = match.designation;
+        } else {
+          this.selectedSite.name = siteName || 'Custom Selected Location';
+          this.selectedSite.designation = designation || 'User Chosen Site';
+        }
       }
+      this.updateSiteCoverageAndSample();
+      if (this.isOpen) this.render();
+    } finally {
+      this._isSyncingFromGlobe = false;
     }
-    this.updateSiteCoverageAndSample();
-    if (this.isOpen) this.render();
   }
 
   private async init() {
@@ -282,7 +288,7 @@ export class MissionWorkspace {
       }
     }
 
-    if (this.onSiteChangedCallback) {
+    if (!this._isSyncingFromGlobe && this.onSiteChangedCallback) {
       this.onSiteChangedCallback(this.selectedSite);
     }
   }

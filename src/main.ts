@@ -711,7 +711,55 @@ hud.innerHTML = `
 document.body.appendChild(hud);
 
 // ── SPICE Geometry Panel ───────────────────────────────────────
-createGeometryPanel({ sunLight, earthshineLight });
+createGeometryPanel({ sunLight, earthshineLight }, {
+  onSiteInput: (lat, lon) => {
+    // Show surface coordinate confirmation toast menu & focus camera on lunar coordinate
+    showSurfaceCoordinateConfirmation(lat, lon, undefined, true);
+  },
+  onSiteCalculate: (lat, lon, label) => {
+    // Dismiss pending confirmation toast & marker once calculated
+    const toast = document.getElementById('selection-confirm-toast');
+    if (toast) toast.style.display = 'none';
+    if (pendingSelectionMarker) pendingSelectionMarker.visible = false;
+    pendingCoordinates = null;
+
+    const insideDEM = isInsideSite01Coverage(lon, lat);
+    const siteName = label.includes('·') ? label.split('·')[0].trim() : (insideDEM ? 'Site 01 Target' : 'Custom Lunar Target');
+
+    selectMissionSite({
+      name: siteName,
+      designation: formatSelenographicCoords(lat, lon),
+      latitudeDeg: lat,
+      longitudeDeg: lon,
+      elevationM: Math.round(sampleElevationAtLatLon(lat, lon) * 1000),
+      coordinateConvention: 'Latitude -90° to +90° (South negative); Longitude 0° to 360° East-positive',
+      referenceDatum: 'IAU Moon 2000 Sphere · MOON_ME frame',
+      isInsideSite01DEM: insideDEM,
+      demDatasetName: insideDEM ? 'NASA LOLA Artemis Site 01 (5 m/px)' : 'Global LOLA (~60 m/px)',
+    }, false, false);
+  },
+  onPresetSelect: (lat, lon, label) => {
+    const toast = document.getElementById('selection-confirm-toast');
+    if (toast) toast.style.display = 'none';
+    if (pendingSelectionMarker) pendingSelectionMarker.visible = false;
+    pendingCoordinates = null;
+
+    const insideDEM = isInsideSite01Coverage(lon, lat);
+    const siteName = label.includes('·') ? label.split('·')[0].trim() : label;
+
+    selectMissionSite({
+      name: siteName,
+      designation: formatSelenographicCoords(lat, lon),
+      latitudeDeg: lat,
+      longitudeDeg: lon,
+      elevationM: Math.round(sampleElevationAtLatLon(lat, lon) * 1000),
+      coordinateConvention: 'Latitude -90° to +90° (South negative); Longitude 0° to 360° East-positive',
+      referenceDatum: 'IAU Moon 2000 Sphere · MOON_ME frame',
+      isInsideSite01DEM: insideDEM,
+      demDatasetName: insideDEM ? 'NASA LOLA Artemis Site 01 (5 m/px)' : 'Global LOLA (~60 m/px)',
+    }, true, false);
+  },
+});
 
 // ── Workspaces Integration ─────────────────────────────────────
 southPoleExplorer = new SouthPoleExplorer();
@@ -759,7 +807,7 @@ candidateComparisonWorkspace.setOnInspectSiteOnGlobe((site) => {
 });
 
 missionWorkspace.setOnSiteChanged((site) => {
-  updateTargetSiteMarker(site);
+  updateTargetSiteMarker(site, false);
 });
 
 missionWorkspace.setOnTimelineScrubbed((sample) => {
