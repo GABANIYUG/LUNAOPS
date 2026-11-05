@@ -51,6 +51,9 @@ let activeSiteLon = 222.51;
 let displacementData: Float32Array | null = null;
 let originalPositions: Float32Array | null = null;
 let displacedPositions: Float32Array | null = null;
+let dispCanvasPixels: Uint8ClampedArray | null = null;
+let dispCanvasWidth = 0;
+let dispCanvasHeight = 0;
 
 // Temporary user selection pending confirmation
 let pendingCoordinates: { latDeg: number; lonDeg: number; elevKm: number } | null = null;
@@ -290,6 +293,16 @@ function sampleElevationBilinear(
   return ELEV_MIN_KM + raw * ELEV_RANGE_KM;
 }
 
+function sampleElevationAtLatLon(latDeg: number, lonDeg: number): number {
+  if (dispCanvasPixels && dispCanvasWidth > 0 && dispCanvasHeight > 0) {
+    const v = THREE.MathUtils.clamp((latDeg + 90.0) / 180.0, 0.0, 1.0);
+    const normLon = ((lonDeg % 360.0) + 360.0) % 360.0;
+    const u = ((normLon + 180.0) % 360.0) / 360.0;
+    return sampleElevationBilinear(u, v, dispCanvasWidth, dispCanvasHeight, dispCanvasPixels);
+  }
+  return 0;
+}
+
 function applyDisplacementToGeometry(
   geometry: THREE.SphereGeometry,
   dispTexture: HTMLImageElement,
@@ -305,6 +318,10 @@ function applyDisplacementToGeometry(
   ctx.drawImage(dispTexture, 0, 0);
   const imgData = ctx.getImageData(0, 0, cvs.width, cvs.height);
   const pixels = imgData.data;
+
+  dispCanvasPixels = pixels;
+  dispCanvasWidth = cvs.width;
+  dispCanvasHeight = cvs.height;
 
   originalPositions = new Float32Array(pos.array.length);
   originalPositions.set(pos.array as Float32Array);
@@ -1052,11 +1069,69 @@ const manualLonInput = document.getElementById('manual-lon') as HTMLInputElement
 const coordsErrorMsg = document.getElementById('coords-error-msg')!;
 const coordsPreviewLine = document.getElementById('coords-preview-line')!;
 
+function showSurfaceCoordinateConfirmation(
+  latDeg: number,
+  lonDeg: number,
+  elevKm?: number,
+  focusCamera: boolean = false,
+) {
+  if (elevKm === undefined) {
+    elevKm = sampleElevationAtLatLon(latDeg, lonDeg);
+  }
+
+  pendingCoordinates = { latDeg, lonDeg, elevKm };
+
+  // Place pending selection marker
+  if (pendingSelectionMarker) {
+    const pos = selenographicToMoonVector(latDeg, lonDeg, MOON_RADIUS * 1.002);
+    pendingSelectionMarker.position.copy(pos);
+    const normal = pos.clone().normalize();
+    pendingSelectionMarker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+    pendingSelectionMarker.visible = true;
+  }
+
+  // Smoothly focus camera onto coordinate if requested (e.g. manual entry)
+  if (focusCamera && moonGroup) {
+    if (isSouthPoleView && latDeg > -80.0) {
+      isSouthPoleView = false;
+      document.getElementById('btn-south-pole')?.classList.remove('active');
+      southPoleExplorer?.close();
+    }
+    focusCameraOnCoordinates(latDeg, lonDeg);
+  }
+
+  // Update HUD telemetry readouts
+  const coordsEl = document.getElementById('readout-coords');
+  if (coordsEl) {
+    coordsEl.textContent = formatSelenographicCoords(latDeg, lonDeg);
+  }
+  const elevEl = document.getElementById('readout-elev');
+  if (elevEl) {
+    elevEl.textContent = `${elevKm >= 0 ? '+' : ''}${elevKm.toFixed(2)} km`;
+  }
+
+  // Show confirmation toast
+  const toast = document.getElementById('selection-confirm-toast')!;
+  const toastCoords = document.getElementById('toast-coords-text')!;
+  const toastElev = document.getElementById('toast-elev-text')!;
+
+  toastCoords.textContent = formatSelenographicCoords(latDeg, lonDeg);
+  const distKm = distanceToSouthPoleKm(latDeg);
+  toastElev.textContent = `Elevation: ${elevKm >= 0 ? '+' : ''}${elevKm.toFixed(2)} km · Distance to 90°S: ${distKm.toFixed(1)} km`;
+  toast.style.display = 'block';
+}
+
 function openCoordsModal() {
   manualLatInput.value = activeSiteLat.toFixed(3);
   manualLonInput.value = activeSiteLon.toFixed(2);
   coordsErrorMsg.style.display = 'none';
   updateManualCoordsPreview();
+
+  // Dismiss any existing pending toast when entering new manual coordinates
+  document.getElementById('selection-confirm-toast')!.style.display = 'none';
+  if (pendingSelectionMarker) pendingSelectionMarker.visible = false;
+  pendingCoordinates = null;
+
   coordsModal.style.display = 'flex';
   setTimeout(() => {
     manualLatInput.focus();
@@ -1078,18 +1153,8 @@ function applyManualCoords() {
   }
   closeCoordsModal();
 
-  const insideDEM = isInsideSite01Coverage(val.lon, val.lat);
-  selectMissionSite({
-    name: 'Manual Coordinate Target',
-    designation: formatSelenographicCoords(val.lat, val.lon),
-    latitudeDeg: val.lat,
-    longitudeDeg: val.lon,
-    elevationM: 0,
-    coordinateConvention: 'Latitude -90° to +90° (South negative); Longitude 0° to 360° East-positive',
-    referenceDatum: 'IAU Moon 2000 Sphere · MOON_ME frame',
-    isInsideSite01DEM: insideDEM,
-    demDatasetName: insideDEM ? 'NASA LOLA Artemis Site 01 (5 m/px)' : 'Global LOLA (~60 m/px)',
-  });
+  // Show surface coordinate confirmation toast menu & focus camera on lunar coordinate
+  showSurfaceCoordinateConfirmation(val.lat, val.lon, undefined, true);
 }
 
 document.getElementById('btn-manual-coords')!.addEventListener('click', openCoordsModal);
@@ -1187,37 +1252,16 @@ canvas.addEventListener('click', (e) => {
     const hit = intersects[0];
     const localHit = moonMesh.worldToLocal(hit.point.clone());
     const { latDeg, lonDeg } = moonVectorToSelenographic(localHit, MOON_RADIUS);
-    const coordsEl = document.getElementById('readout-coords');
-    if (coordsEl && !pendingCoordinates) {
-      coordsEl.textContent = formatSelenographicCoords(latDeg, lonDeg);
-    }
 
-    // Get elevation from nearest vertex
+    // Get elevation from nearest vertex or bilinear sampling
     let elevKm = 0;
     if (hit.face && displacementData) {
       elevKm = displacementData[hit.face.a] ?? 0;
+    } else {
+      elevKm = sampleElevationAtLatLon(latDeg, lonDeg);
     }
 
-    pendingCoordinates = { latDeg, lonDeg, elevKm };
-
-    // Place pending selection marker
-    if (pendingSelectionMarker) {
-      const pos = selenographicToMoonVector(latDeg, lonDeg, MOON_RADIUS * 1.002);
-      pendingSelectionMarker.position.copy(pos);
-      const normal = pos.clone().normalize();
-      pendingSelectionMarker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
-      pendingSelectionMarker.visible = true;
-    }
-
-    // Show confirmation toast
-    const toast = document.getElementById('selection-confirm-toast')!;
-    const toastCoords = document.getElementById('toast-coords-text')!;
-    const toastElev = document.getElementById('toast-elev-text')!;
-
-    toastCoords.textContent = formatSelenographicCoords(latDeg, lonDeg);
-    const distKm = distanceToSouthPoleKm(latDeg);
-    toastElev.textContent = `Elevation: ${elevKm >= 0 ? '+' : ''}${elevKm.toFixed(2)} km · Distance to 90°S: ${distKm.toFixed(1)} km`;
-    toast.style.display = 'block';
+    showSurfaceCoordinateConfirmation(latDeg, lonDeg, elevKm, false);
   }
 });
 
@@ -1225,15 +1269,17 @@ canvas.addEventListener('click', (e) => {
 document.getElementById('btn-confirm-site')!.addEventListener('click', () => {
   if (pendingCoordinates) {
     const { latDeg, lonDeg, elevKm } = pendingCoordinates;
+    const insideDEM = isInsideSite01Coverage(lonDeg, latDeg);
     selectMissionSite({
-      name: 'Custom Lunar Target',
+      name: insideDEM ? 'Site 01 Target' : 'Custom Lunar Target',
       designation: formatSelenographicCoords(latDeg, lonDeg),
       latitudeDeg: latDeg,
       longitudeDeg: lonDeg,
-      elevationM: elevKm * 1000,
+      elevationM: Math.round(elevKm * 1000),
       coordinateConvention: 'Latitude -90° to +90° (South negative); Longitude 0° to 360° East-positive',
       referenceDatum: 'IAU Moon 2000 Sphere · MOON_ME frame',
-      isInsideSite01DEM: latDeg <= -89.4 && latDeg >= -89.55 && lonDeg >= 221.0 && lonDeg <= 224.0,
+      isInsideSite01DEM: insideDEM,
+      demDatasetName: insideDEM ? 'NASA LOLA Artemis Site 01 (5 m/px)' : 'Global LOLA (~60 m/px)',
     });
   }
   document.getElementById('selection-confirm-toast')!.style.display = 'none';
