@@ -695,6 +695,11 @@ export class CandidateComparisonWorkspace {
       this.runComparison();
     });
 
+    // Export Comparison Report
+    this.container.querySelector('#btn-export-comparison-panel')?.addEventListener('click', () => {
+      this.openExportModal();
+    });
+
     // Remove buttons
     this.container.querySelectorAll('.btn-remove-scenario').forEach((btn) => {
       btn.addEventListener('click', (e) => {

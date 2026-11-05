@@ -31,7 +31,6 @@ import {
 } from './spiceClient';
 import {
   selenographicToPolarStereo,
-  previewPixelToSelenographic,
   formatSelenographicCoords,
 } from './utils/coordinates';
 import { terrainSampler } from './utils/terrainSampler';
@@ -109,7 +108,11 @@ export class MissionWorkspace {
   private horizonLoading = false;
   private horizonError: string | null = null;
   private exportPanel: ExportPanel | null = null;
-  private activeTerrainLayer: 'elev' | 'slope' | 'toterr' = 'elev';
+  private activeTerrainLayer: 'elev' | 'slope' | 'toterr' | 'slperr' | 'ldec' = 'elev';
+  private activeDatasetId: string = 'site01';
+
+  /** Returns the terrain dataset ID that is currently active for this workspace. */
+  public getActiveDatasetId(): string { return this.activeDatasetId; }
 
   // Timeline state (Phase 4)
   private timelineResponse: MissionTimelineResponse | null = null;
@@ -257,25 +260,30 @@ export class MissionWorkspace {
     const lon = this.selectedSite.longitudeDeg;
 
     const sample = terrainSampler.sample(lon, lat);
-    this.selectedSite.isInsideSite01DEM = sample.isInside;
+    // isInsideSite01DEM now means "inside ANY high-res 5m/px tile" (not just Site01)
+    this.selectedSite.isInsideSite01DEM = sample.isInside && !sample.isRegional;
+    this.activeDatasetId = sample.datasetId;
+
+    // Fire-and-forget: pre-load rasters for the now-active dataset
+    terrainSampler.setActiveDataset(sample.datasetId).catch(() => {});
 
     if (sample.isInside) {
-      this.selectedSite.demDatasetName = 'NASA LOLA Artemis Site 01 (5 m/px)';
+      this.selectedSite.demDatasetName = `${sample.datasetName} (${sample.resolutionLabel})`;
       this.selectedSite.sampledElevationM = sample.elevationM;
       this.selectedSite.sampledSlopeDeg = sample.slopeDeg;
       this.selectedSite.sampledErrorM = sample.errorM;
       this.selectedSite.pixelCoords = { px: sample.px, py: sample.py, gridMax: 512 };
       this.selectedSite.polarStereoM = { x: sample.xM, y: sample.yM };
 
-      // Update elevation if user hasn't explicitly customized it wildly
       if (sample.elevationM !== undefined) {
         this.selectedSite.elevationM = sample.elevationM;
       }
     } else {
-      this.selectedSite.demDatasetName = undefined;
-      this.selectedSite.sampledElevationM = undefined;
-      this.selectedSite.sampledSlopeDeg = undefined;
-      this.selectedSite.sampledErrorM = undefined;
+      // Regional or completely outside coverage — still provide best-available data
+      this.selectedSite.demDatasetName = sample.datasetName;
+      this.selectedSite.sampledElevationM = sample.elevationM;
+      this.selectedSite.sampledSlopeDeg = sample.slopeDeg;
+      this.selectedSite.sampledErrorM = sample.errorM;
       this.selectedSite.pixelCoords = undefined;
       const { x, y } = selenographicToPolarStereo(lon, lat);
       this.selectedSite.polarStereoM = { x, y };
@@ -283,7 +291,7 @@ export class MissionWorkspace {
       const match = SOUTH_POLE_SITES.find(
         (p) => Math.abs(p.lat - lat) < 0.08 && Math.abs(p.lon - lon) < 0.08
       );
-      if (match) {
+      if (match && sample.elevationM === undefined) {
         this.selectedSite.elevationM = match.elevationM;
       }
     }
@@ -468,7 +476,7 @@ export class MissionWorkspace {
     `;
 
     this.wireEvents();
-    if (this.currentTab === 'site' && this.selectedSite.isInsideSite01DEM) {
+    if (this.currentTab === 'site') {
       this.drawTerrainCanvas();
     }
     if (this.currentTab === 'horizon' && this.horizonProfile) {
@@ -621,27 +629,21 @@ export class MissionWorkspace {
         <!-- Left: Local Terrain Visualizer -->
         <div class="panel-card terrain-canvas-card">
           <div class="card-header">
-            <h3>Detailed Local Terrain (Site 01)</h3>
+            <h3>Detailed Local Terrain (${terrainSampler.getActiveDataset().resolution_label || 'Multi-Site'})</h3>
             <div class="layer-toggle-group">
               <button class="btn-layer-toggle ${this.activeTerrainLayer === 'elev' ? 'active' : ''}" data-layer="elev">Elevation</button>
               <button class="btn-layer-toggle ${this.activeTerrainLayer === 'slope' ? 'active' : ''}" data-layer="slope">Slope</button>
               <button class="btn-layer-toggle ${this.activeTerrainLayer === 'toterr' ? 'active' : ''}" data-layer="toterr">Uncertainty</button>
+              ${terrainSampler.getActiveDataset().slope_uncertainty.available ? `<button class="btn-layer-toggle ${this.activeTerrainLayer === 'slperr' ? 'active' : ''}" data-layer="slperr">Slope Err</button>` : ''}
+              ${terrainSampler.getActiveDataset().observation_density.available ? `<button class="btn-layer-toggle ${this.activeTerrainLayer === 'ldec' ? 'active' : ''}" data-layer="ldec">Obs Density</button>` : ''}
             </div>
           </div>
 
           <div class="canvas-wrapper">
-            ${
-              isInside
-                ? `<canvas id="site01-terrain-canvas" width="512" height="512" class="terrain-canvas"></canvas>
-                   <div class="canvas-overlay-crosshair-note">Click anywhere on terrain tile to target coordinates</div>`
-                : `<div class="outside-terrain-placeholder">
-                    <div class="placeholder-icon">🌐</div>
-                    <h4>Outside High-Resolution Site 01 DEM Footprint</h4>
-                    <p>Current coordinates (${formatSelenographicCoords(lat, lon)}) fall outside the 16×16 km Site 01 tile.</p>
-                    <p class="placeholder-hint">Global 16 px/° LOLA elevation remains active. Select Artemis Site 01 below or click the 3D Moon near Shackleton Ridge to enter 5 m/px coverage.</p>
-                    <button id="btn-jump-site01" class="btn-preset-accent">🎯 Jump to Artemis Site 01</button>
-                   </div>`
-            }
+            <canvas id="site01-terrain-canvas" width="512" height="512" class="terrain-canvas"></canvas>
+            <div class="canvas-overlay-crosshair-note">
+              ${isInside ? 'Click anywhere on terrain tile to target coordinates' : `Regional coverage — ${terrainSampler.getActiveDataset().resolution_label}`}
+            </div>
           </div>
 
           <div class="terrain-stat-bar">
@@ -677,8 +679,8 @@ export class MissionWorkspace {
               <div class="preset-item ${p.lat === lat && p.lon === lon ? 'selected' : ''}" data-preset-id="${p.id}">
                 <div class="preset-title-row">
                   <span class="preset-name">${p.name}</span>
-                  <span class="preset-tag ${p.id === 'site-01' ? 'tag-dem' : 'tag-global'}">
-                    ${p.id === 'site-01' ? '5m DEM Active' : 'Global 16px/°'}
+                  <span class="preset-tag ${['site-01','shackleton-rim','nobile-rim-1','malapert'].includes(p.id) ? 'tag-dem' : 'tag-global'}">
+                    ${['site-01','shackleton-rim','nobile-rim-1','malapert'].includes(p.id) ? '5m DEM' : 'Global LOLA'}
                   </span>
                 </div>
                 <div class="preset-desc">${p.description}</div>
@@ -720,11 +722,11 @@ export class MissionWorkspace {
             <div class="coverage-status-box ${isInside ? 'status-dem-active' : 'status-dem-outside'}">
               <div class="status-indicator-dot"></div>
               <div class="status-text">
-                <strong>${isInside ? 'Inside NASA LOLA Site 01 (5 m/px) Tile' : 'Outside High-Resolution Site 01 DEM'}</strong>
+                <strong>${isInside ? `Inside ${terrainSampler.getActiveDataset().dataset_name} (${terrainSampler.getActiveDataset().resolution_label})` : (terrainSampler.getActiveDataset().dataset_name || 'Outside High-Resolution DEM')}</strong>
                 <p>${
                   isInside
-                    ? 'Rigorous polar stereographic transform active. Native raster bounds: L=-19 km, R=-3 km, B=-20 km, T=-4 km.'
-                    : 'Coordinates will use SPICE geometric ephemeris with NASA global 16 px/° LOLA elevation relief.'
+                    ? `Rigorous polar stereographic transform active. Source: ${terrainSampler.getActiveDataset().source}.`
+                    : 'Coordinates will use SPICE geometric ephemeris with the best available LOLA elevation relief.'
                 }</p>
               </div>
             </div>
@@ -1623,15 +1625,18 @@ export class MissionWorkspace {
       if (!canvas) return;
       this.terrainCtx = canvas.getContext('2d');
 
+      const ds = terrainSampler.getActiveDataset();
+      let layerSrc: string;
+      switch (this.activeTerrainLayer) {
+        case 'slope':  layerSrc = ds.layers.slope; break;
+        case 'toterr': layerSrc = ds.layers.toterr; break;
+        case 'slperr': layerSrc = ds.layers.slperr ?? ds.layers.toterr; break;
+        case 'ldec':   layerSrc = ds.layers.ldec ?? ds.layers.slope; break;
+        default:       layerSrc = ds.layers.elev_hill; break; // 'elev'
+      }
+
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      const layerSrc =
-        this.activeTerrainLayer === 'slope'
-          ? '/generated/site01_slope.png'
-          : this.activeTerrainLayer === 'toterr'
-          ? '/generated/site01_toterr.png'
-          : '/generated/site01_elev_norm.png';
-
       img.onload = () => {
         if (!this.terrainCtx) return;
         this.terrainCtx.clearRect(0, 0, 512, 512);
@@ -1643,15 +1648,11 @@ export class MissionWorkspace {
           this.terrainCtx.strokeStyle = '#38bdf8';
           this.terrainCtx.lineWidth = 2;
           this.terrainCtx.beginPath();
-          // Horizontal line
           this.terrainCtx.moveTo(px - 14, py);
           this.terrainCtx.lineTo(px + 14, py);
-          // Vertical line
           this.terrainCtx.moveTo(px, py - 14);
           this.terrainCtx.lineTo(px, py + 14);
           this.terrainCtx.stroke();
-
-          // Circle
           this.terrainCtx.beginPath();
           this.terrainCtx.arc(px, py, 6, 0, 2 * Math.PI);
           this.terrainCtx.stroke();
@@ -1750,10 +1751,11 @@ export class MissionWorkspace {
       const px = Math.round((clickX / rect.width) * 512);
       const py = Math.round((clickY / rect.height) * 512);
 
-      const { lonDeg, latDeg } = previewPixelToSelenographic(px, py);
-      this.selectedSite.latitudeDeg = Math.round(latDeg * 1000) / 1000;
-      this.selectedSite.longitudeDeg = Math.round(lonDeg * 1000) / 1000;
-      this.selectedSite.name = 'Site 01 Targeted Point';
+      const ds = terrainSampler.getActiveDataset();
+      const coords = terrainSampler.pixelToSelenographic(ds, px, py);
+      this.selectedSite.latitudeDeg = Math.round(coords.latDeg * 1000) / 1000;
+      this.selectedSite.longitudeDeg = Math.round(coords.lonDeg * 1000) / 1000;
+      this.selectedSite.name = `${ds.dataset_name.split(' ')[0] || 'Site'} Targeted Point`;
       this.selectedSite.designation = `Terrain Pixel (${px}, ${py})`;
       this.updateSiteCoverageAndSample();
       this.render();
@@ -1957,9 +1959,61 @@ export class MissionWorkspace {
     this.container.querySelector('#btn-export-scenario')?.addEventListener('click', exportJSON);
     this.container.querySelector('#btn-open-export-panel-footer')?.addEventListener('click', () => this.openExportModal());
     this.container.querySelector('#btn-open-full-export-dialog')?.addEventListener('click', () => this.openExportModal());
+
+    // Direct Quick Export Action Buttons (PDF, CSV, JSON)
     this.container.querySelectorAll('.btn-quick-export').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const fmt = (btn.getAttribute('data-quick-fmt') as any) || 'pdf';
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const target = e.currentTarget as HTMLButtonElement;
+        const fmt = (target.getAttribute('data-quick-fmt') as 'pdf' | 'csv' | 'json') || 'pdf';
+
+        const originalHTML = target.innerHTML;
+        target.disabled = true;
+        target.innerHTML = `⏳ Generating ${fmt.toUpperCase()}...`;
+
+        try {
+          if (!this.exportPanel) {
+            this.exportPanel = new ExportPanel();
+          }
+          this.computeIsoTimestamps();
+          await this.exportPanel.directMissionExport({
+            scenarioName: this.scenarioName,
+            notes: this.scenarioNotes,
+            siteName: this.selectedSite.name,
+            latitudeDeg: this.selectedSite.latitudeDeg,
+            longitudeDeg: this.selectedSite.longitudeDeg,
+            elevationM: this.selectedSite.elevationM,
+            instrumentHeightM: 2.0,
+            startUtc: this.timeline.isoUtcStart,
+            endUtc: this.timeline.isoUtcEnd,
+            stepMinutes: Math.max(1, Math.round((this.timeline.timeStepHours || 1) * 60)),
+            timelineResponse: this.timelineResponse || undefined,
+            horizonProfile: this.horizonProfile || undefined,
+          }, fmt);
+
+          target.innerHTML = `✓ Downloaded ${fmt.toUpperCase()}!`;
+          setTimeout(() => {
+            target.innerHTML = originalHTML;
+            target.disabled = false;
+          }, 2500);
+        } catch (err: any) {
+          console.error('[MissionWorkspace] Quick export error:', err);
+          target.innerHTML = `❌ Failed`;
+          alert(`Export failed: ${err.message || err}`);
+          setTimeout(() => {
+            target.innerHTML = originalHTML;
+            target.disabled = false;
+          }, 3000);
+        }
+      });
+    });
+
+    // Clicking the item row outside the button opens the full dialog with that format
+    this.container.querySelectorAll('.export-art-item').forEach((item) => {
+      item.addEventListener('click', (e) => {
+        if ((e.target as HTMLElement).closest('.btn-quick-export')) return;
+        const btn = item.querySelector('.btn-quick-export');
+        const fmt = (btn?.getAttribute('data-quick-fmt') as any) || 'pdf';
         this.openExportModal(fmt);
       });
     });

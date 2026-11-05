@@ -1,0 +1,79 @@
+{
+  "dataset_id": "site04",
+  "dataset_name": "NASA LOLA Artemis Site 04 (Shackleton Rim / South Pole)",
+  "source": "NASA Lunar Reconnaissance Orbiter (LRO) / LOLA Instrument Team",
+  "is_regional": false,
+  "resolution_m": 5.0,
+  "resolution_label": "5.0 m/px",
+  "matching_candidates": [
+    "shackleton-rim",
+    "south-pole"
+  ],
+  "original_raster": {
+    "shape": [
+      3200,
+      3200
+    ],
+    "resolution": 5.0,
+    "crs": "PROJCS[\"unnamed\",GEOGCS[\"unnamed ellipse\",DATUM[\"unknown\",SPHEROID[\"unnamed\",1737400,0]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Polar_Stereographic\"],PARAMETER[\"latitude_of_origin\",-90],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",NORTH],AXIS[\"Northing\",NORTH]]"
+  },
+  "bounds_polar_m": {
+    "minX": -9000.0,
+    "maxX": 7000.0,
+    "minY": -15000.0,
+    "maxY": 1000.0,
+    "widthM": 16000.0,
+    "heightM": 16000.0
+  },
+  "center": {
+    "lat": -89.76681,
+    "lon": 188.1301,
+    "x_m": -1000.0,
+    "y_m": -7000.0
+  },
+  "lat_range": [
+    -89.7668,
+    -89.4231
+  ],
+  "lon_range": [
+    81.8699,
+    276.3402
+  ],
+  "elevation": {
+    "min_m": -2846.3,
+    "max_m": 1803.35,
+    "p1_m": -2735.62,
+    "p99_m": 1685.46,
+    "units": "meters (IAU Moon 2000 R=1737.4 km)"
+  },
+  "slope": {
+    "min_deg": 0.72,
+    "max_deg": 39.65,
+    "display_max_deg": 39.65,
+    "units": "degrees"
+  },
+  "elevation_uncertainty": {
+    "min_m": 0.14,
+    "max_m": 2.81,
+    "display_max_m": 2.0,
+    "units": "meters (1-sigma RMS)"
+  },
+  "slope_uncertainty": {
+    "available": true,
+    "max_deg": 3.46,
+    "units": "degrees"
+  },
+  "observation_density": {
+    "available": true,
+    "max_count": 0,
+    "units": "LOLA laser altimeter shots per pixel"
+  },
+  "layers": {
+    "elev_hill": "/generated/terrain/site04/elev_hill.png",
+    "elev_raw": "/generated/terrain/site04/elev_raw.png",
+    "slope": "/generated/terrain/site04/slope.png",
+    "toterr": "/generated/terrain/site04/toterr.png",
+    "slperr": "/generated/terrain/site04/slperr.png",
+    "ldec": "/generated/terrain/site04/ldec.png"
+  }
+}

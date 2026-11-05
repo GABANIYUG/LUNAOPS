@@ -1,0 +1,78 @@
+{
+  "dataset_id": "site01",
+  "dataset_name": "NASA LOLA Artemis Site 01 (Connecting Ridge)",
+  "source": "NASA Lunar Reconnaissance Orbiter (LRO) / LOLA Instrument Team",
+  "is_regional": false,
+  "resolution_m": 5.0,
+  "resolution_label": "5.0 m/px",
+  "matching_candidates": [
+    "site-01"
+  ],
+  "original_raster": {
+    "shape": [
+      3200,
+      3200
+    ],
+    "resolution": 5.0,
+    "crs": "PROJCS[\"unnamed\",GEOGCS[\"unnamed ellipse\",DATUM[\"unknown\",SPHEROID[\"unnamed\",1737400,0]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Polar_Stereographic\"],PARAMETER[\"latitude_of_origin\",-90],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",NORTH],AXIS[\"Northing\",NORTH]]"
+  },
+  "bounds_polar_m": {
+    "minX": -19000.0,
+    "maxX": -3000.0,
+    "minY": -20000.0,
+    "maxY": -4000.0,
+    "widthM": 16000.0,
+    "heightM": 16000.0
+  },
+  "center": {
+    "lat": -89.46316,
+    "lon": 222.51045,
+    "x_m": -11000.0,
+    "y_m": -12000.0
+  },
+  "lat_range": [
+    -89.8351,
+    -89.0903
+  ],
+  "lon_range": [
+    188.5308,
+    258.1113
+  ],
+  "elevation": {
+    "min_m": -517.9,
+    "max_m": 1958.29,
+    "p1_m": -177.08,
+    "p99_m": 1897.93,
+    "units": "meters (IAU Moon 2000 R=1737.4 km)"
+  },
+  "slope": {
+    "min_deg": 0.65,
+    "max_deg": 33.71,
+    "display_max_deg": 30.0,
+    "units": "degrees"
+  },
+  "elevation_uncertainty": {
+    "min_m": 0.16,
+    "max_m": 2.37,
+    "display_max_m": 2.0,
+    "units": "meters (1-sigma RMS)"
+  },
+  "slope_uncertainty": {
+    "available": false,
+    "max_deg": null,
+    "units": "degrees"
+  },
+  "observation_density": {
+    "available": false,
+    "max_count": null,
+    "units": "LOLA laser altimeter shots per pixel"
+  },
+  "layers": {
+    "elev_hill": "/generated/terrain/site01/elev_hill.png",
+    "elev_raw": "/generated/terrain/site01/elev_raw.png",
+    "slope": "/generated/terrain/site01/slope.png",
+    "toterr": "/generated/terrain/site01/toterr.png",
+    "slperr": null,
+    "ldec": null
+  }
+}

@@ -22,3 +22,11 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# Large raw NASA GeoTIFF source data
+Resources/south-pole-region-80m/
+Resources/south-pole-site04/
+Resources/south-pole-site06/
+Resources/south-pole-site07/
+Resources/south-pole-site11/
+Resources/south-pole-site23/

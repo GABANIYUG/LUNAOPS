@@ -67,6 +67,12 @@ export class ExportPanel {
     this.container.id = 'export-panel-modal';
     this.container.className = 'mission-modal hidden';
     document.body.appendChild(this.container);
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.isOpen && !this.isGenerating) {
+        this.close();
+      }
+    });
   }
 
   public openForMission(ctx: MissionExportContext, initialFormat?: ExportFormat) {
@@ -89,6 +95,20 @@ export class ExportPanel {
     this.isOpen = true;
     this.container.classList.remove('hidden');
     this.render();
+  }
+
+  public async directMissionExport(ctx: MissionExportContext, format: ExportFormat): Promise<void> {
+    this.selectedFormat = format;
+    this.mode = 'mission';
+    this.missionContext = ctx;
+    await this.exportMission();
+  }
+
+  public async directComparisonExport(ctx: ComparisonExportContext, format: ExportFormat): Promise<void> {
+    this.selectedFormat = format;
+    this.mode = 'comparison';
+    this.comparisonContext = ctx;
+    await this.exportComparison();
   }
 
   public close() {
@@ -119,8 +139,13 @@ export class ExportPanel {
       : `${this.comparisonContext?.scenarios.length ?? 0} Candidate Scenarios · NASA SPICE & LOLA DEM`;
 
     this.container.innerHTML = `
+<<<<<<< HEAD
+    <div class="mission-dialog export-dialog">
+      <!-- Header -->
+=======
     <div class="mission-modal-dialog export-dialog">
       <!-- Clean Header -->
+>>>>>>> 6ddfedd5ead43ab4c4d90aca925f4148d9125713
       <div class="mission-modal-header export-dialog-header">
         <div class="mission-header-info">
           <h2>📤 ${title}</h2>
@@ -217,12 +242,22 @@ export class ExportPanel {
   }
 
   private wireEvents() {
-    // Backdrop & Close
+    // Close button & Cancel button
     this.container.querySelector('#btn-close-export')?.addEventListener('click', () => this.close());
     this.container.querySelector('#btn-cancel-export')?.addEventListener('click', () => this.close());
+<<<<<<< HEAD
+
+    // Click outside dialog (on modal container backdrop) to close
+    this.container.onclick = (e) => {
+      if (e.target === this.container && !this.isGenerating) {
+        this.close();
+      }
+    };
+=======
     this.container.addEventListener('click', (e) => {
       if (e.target === this.container && !this.isGenerating) this.close();
     });
+>>>>>>> 6ddfedd5ead43ab4c4d90aca925f4148d9125713
 
     // Format selection cards
     const cards = this.container.querySelectorAll('.export-format-card');
@@ -288,12 +323,22 @@ export class ExportPanel {
       horizon_result: ctx.horizonProfile || null,
     };
 
-    const url = `${SPICE_API_BASE}/api/export/mission?format=${this.selectedFormat}`;
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    const endpoint = `/api/export/mission?format=${this.selectedFormat}`;
+    let resp: Response;
+    try {
+      resp = await fetch(`${SPICE_API_BASE}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // Fallback via Vite dev server proxy
+      resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    }
 
     if (!resp.ok) {
       let errText = `HTTP ${resp.status}`;
@@ -360,12 +405,22 @@ export class ExportPanel {
       comparison_result: ctx.comparisonResult || null,
     };
 
-    const url = `${SPICE_API_BASE}/api/export/comparison?format=${this.selectedFormat}`;
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    const endpoint = `/api/export/comparison?format=${this.selectedFormat}`;
+    let resp: Response;
+    try {
+      resp = await fetch(`${SPICE_API_BASE}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // Fallback via Vite dev server proxy
+      resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    }
 
     if (!resp.ok) {
       let errText = `HTTP ${resp.status}`;

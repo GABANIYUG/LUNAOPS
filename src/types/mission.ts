@@ -33,6 +33,8 @@ export interface LandingSiteConfig {
   sampledElevationM?: number;
   sampledSlopeDeg?: number;
   sampledErrorM?: number;
+  sampledSlopeErrorDeg?: number;
+  sampledObsCount?: number;
   pixelCoords?: { px: number; py: number; gridMax: number };
   polarStereoM?: { x: number; y: number };
 }

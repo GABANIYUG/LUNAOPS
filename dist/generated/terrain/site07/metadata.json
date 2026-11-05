@@ -1,0 +1,76 @@
+{
+  "dataset_id": "site07",
+  "dataset_name": "NASA LOLA Artemis Site 07 (Faustini / Amundsen Rim)",
+  "source": "NASA Lunar Reconnaissance Orbiter (LRO) / LOLA Instrument Team",
+  "is_regional": false,
+  "resolution_m": 5.0,
+  "resolution_label": "5.0 m/px",
+  "matching_candidates": [],
+  "original_raster": {
+    "shape": [
+      3200,
+      3200
+    ],
+    "resolution": 5.0,
+    "crs": "PROJCS[\"unnamed\",GEOGCS[\"unnamed ellipse\",DATUM[\"unknown\",SPHEROID[\"unnamed\",1737400,0]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Polar_Stereographic\"],PARAMETER[\"latitude_of_origin\",-90],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",NORTH],AXIS[\"Northing\",NORTH]]"
+  },
+  "bounds_polar_m": {
+    "minX": 22000.0,
+    "maxX": 38000.0,
+    "minY": -28000.0,
+    "maxY": -12000.0,
+    "widthM": 16000.0,
+    "heightM": 16000.0
+  },
+  "center": {
+    "lat": -88.81101,
+    "lon": 123.69007,
+    "x_m": 30000.0,
+    "y_m": -20000.0
+  },
+  "lat_range": [
+    -89.1736,
+    -88.4435
+  ],
+  "lon_range": [
+    107.5256,
+    141.8428
+  ],
+  "elevation": {
+    "min_m": -415.06,
+    "max_m": 1648.35,
+    "p1_m": -186.97,
+    "p99_m": 1575.8,
+    "units": "meters (IAU Moon 2000 R=1737.4 km)"
+  },
+  "slope": {
+    "min_deg": 0.47,
+    "max_deg": 35.31,
+    "display_max_deg": 30.0,
+    "units": "degrees"
+  },
+  "elevation_uncertainty": {
+    "min_m": 0.18,
+    "max_m": 2.56,
+    "display_max_m": 2.0,
+    "units": "meters (1-sigma RMS)"
+  },
+  "slope_uncertainty": {
+    "available": true,
+    "max_deg": 3.18,
+    "units": "degrees"
+  },
+  "observation_density": {
+    "available": true,
+    "max_count": 0,
+    "units": "LOLA laser altimeter shots per pixel"
+  },
+  "layers": {
+    "elev_hill": "/generated/terrain/site07/elev_hill.png",
+    "elev_raw": "/generated/terrain/site07/elev_raw.png",
+    "slope": "/generated/terrain/site07/slope.png",
+    "toterr": "/generated/terrain/site07/toterr.png",
+    "slperr": "/generated/terrain/site07/slperr.png",
+    "ldec": "/generated/terrain/site07/ldec.png"
+  }
+}

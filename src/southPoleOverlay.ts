@@ -73,8 +73,8 @@ export const SOUTH_POLE_SITES: SiteInfo[] = [
     description:
       'Elevated crater rim bordering PSR with high water-ice deposition probability.',
     isInsideSite01DEM: false,
-    terrainResolution: 'Global LOLA Altimetry (~60 m/px)',
-    coverageType: 'Global Altimetry',
+    terrainResolution: '5 m/px Site DEM (NASA LOLA)',
+    coverageType: 'High-Resolution Regional DEM',
   },
   {
     id: 'malapert',
@@ -86,8 +86,8 @@ export const SOUTH_POLE_SITES: SiteInfo[] = [
     description:
       'Prominent 5 km massif providing extended solar visibility and DTE comms.',
     isInsideSite01DEM: false,
-    terrainResolution: 'Global LOLA Altimetry (~60 m/px)',
-    coverageType: 'Global Altimetry',
+    terrainResolution: '5 m/px Site DEM (NASA LOLA)',
+    coverageType: 'High-Resolution Regional DEM',
   },
   {
     id: 'haworth-rim',
@@ -123,8 +123,8 @@ export const SOUTH_POLE_SITES: SiteInfo[] = [
     description:
       'Highland plateau surveyed for robotic and crewed polar surface mobility.',
     isInsideSite01DEM: false,
-    terrainResolution: 'Global LOLA Altimetry (~60 m/px)',
-    coverageType: 'Global Altimetry',
+    terrainResolution: '5 m/px Site DEM (NASA LOLA)',
+    coverageType: 'High-Resolution Regional DEM',
   },
 ];
 

@@ -164,7 +164,7 @@ export class SouthPoleExplorer {
     // 2. Site 01 5 m/px high-resolution DEM detail
     const site01Img = new Image();
     site01Img.crossOrigin = 'anonymous';
-    site01Img.src = '/generated/site01_elev_norm.png';
+    site01Img.src = '/generated/terrain/site01/elev_hill.png';
     site01Img.onload = () => {
       this.site01DetailImage = site01Img;
       this.isSite01ImageLoaded = true;

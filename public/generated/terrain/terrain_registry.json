@@ -1,0 +1,549 @@
+{
+  "registry_version": "2.0.0",
+  "datasets": [
+    {
+      "dataset_id": "site01",
+      "dataset_name": "NASA LOLA Artemis Site 01 (Connecting Ridge)",
+      "source": "NASA Lunar Reconnaissance Orbiter (LRO) / LOLA Instrument Team",
+      "is_regional": false,
+      "resolution_m": 5.0,
+      "resolution_label": "5.0 m/px",
+      "matching_candidates": [
+        "site-01"
+      ],
+      "original_raster": {
+        "shape": [
+          3200,
+          3200
+        ],
+        "resolution": 5.0,
+        "crs": "PROJCS[\"unnamed\",GEOGCS[\"unnamed ellipse\",DATUM[\"unknown\",SPHEROID[\"unnamed\",1737400,0]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Polar_Stereographic\"],PARAMETER[\"latitude_of_origin\",-90],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",NORTH],AXIS[\"Northing\",NORTH]]"
+      },
+      "bounds_polar_m": {
+        "minX": -19000.0,
+        "maxX": -3000.0,
+        "minY": -20000.0,
+        "maxY": -4000.0,
+        "widthM": 16000.0,
+        "heightM": 16000.0
+      },
+      "center": {
+        "lat": -89.46316,
+        "lon": 222.51045,
+        "x_m": -11000.0,
+        "y_m": -12000.0
+      },
+      "lat_range": [
+        -89.8351,
+        -89.0903
+      ],
+      "lon_range": [
+        188.5308,
+        258.1113
+      ],
+      "elevation": {
+        "min_m": -517.9,
+        "max_m": 1958.29,
+        "p1_m": -177.08,
+        "p99_m": 1897.93,
+        "units": "meters (IAU Moon 2000 R=1737.4 km)"
+      },
+      "slope": {
+        "min_deg": 0.65,
+        "max_deg": 33.71,
+        "display_max_deg": 30.0,
+        "units": "degrees"
+      },
+      "elevation_uncertainty": {
+        "min_m": 0.16,
+        "max_m": 2.37,
+        "display_max_m": 2.0,
+        "units": "meters (1-sigma RMS)"
+      },
+      "slope_uncertainty": {
+        "available": false,
+        "max_deg": null,
+        "units": "degrees"
+      },
+      "observation_density": {
+        "available": false,
+        "max_count": null,
+        "units": "LOLA laser altimeter shots per pixel"
+      },
+      "layers": {
+        "elev_hill": "/generated/terrain/site01/elev_hill.png",
+        "elev_raw": "/generated/terrain/site01/elev_raw.png",
+        "slope": "/generated/terrain/site01/slope.png",
+        "toterr": "/generated/terrain/site01/toterr.png",
+        "slperr": null,
+        "ldec": null
+      }
+    },
+    {
+      "dataset_id": "site04",
+      "dataset_name": "NASA LOLA Artemis Site 04 (Shackleton Rim / South Pole)",
+      "source": "NASA Lunar Reconnaissance Orbiter (LRO) / LOLA Instrument Team",
+      "is_regional": false,
+      "resolution_m": 5.0,
+      "resolution_label": "5.0 m/px",
+      "matching_candidates": [
+        "shackleton-rim",
+        "south-pole"
+      ],
+      "original_raster": {
+        "shape": [
+          3200,
+          3200
+        ],
+        "resolution": 5.0,
+        "crs": "PROJCS[\"unnamed\",GEOGCS[\"unnamed ellipse\",DATUM[\"unknown\",SPHEROID[\"unnamed\",1737400,0]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Polar_Stereographic\"],PARAMETER[\"latitude_of_origin\",-90],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",NORTH],AXIS[\"Northing\",NORTH]]"
+      },
+      "bounds_polar_m": {
+        "minX": -9000.0,
+        "maxX": 7000.0,
+        "minY": -15000.0,
+        "maxY": 1000.0,
+        "widthM": 16000.0,
+        "heightM": 16000.0
+      },
+      "center": {
+        "lat": -89.76681,
+        "lon": 188.1301,
+        "x_m": -1000.0,
+        "y_m": -7000.0
+      },
+      "lat_range": [
+        -89.7668,
+        -89.4231
+      ],
+      "lon_range": [
+        81.8699,
+        276.3402
+      ],
+      "elevation": {
+        "min_m": -2846.3,
+        "max_m": 1803.35,
+        "p1_m": -2735.62,
+        "p99_m": 1685.46,
+        "units": "meters (IAU Moon 2000 R=1737.4 km)"
+      },
+      "slope": {
+        "min_deg": 0.72,
+        "max_deg": 39.65,
+        "display_max_deg": 39.65,
+        "units": "degrees"
+      },
+      "elevation_uncertainty": {
+        "min_m": 0.14,
+        "max_m": 2.81,
+        "display_max_m": 2.0,
+        "units": "meters (1-sigma RMS)"
+      },
+      "slope_uncertainty": {
+        "available": true,
+        "max_deg": 3.46,
+        "units": "degrees"
+      },
+      "observation_density": {
+        "available": true,
+        "max_count": 0,
+        "units": "LOLA laser altimeter shots per pixel"
+      },
+      "layers": {
+        "elev_hill": "/generated/terrain/site04/elev_hill.png",
+        "elev_raw": "/generated/terrain/site04/elev_raw.png",
+        "slope": "/generated/terrain/site04/slope.png",
+        "toterr": "/generated/terrain/site04/toterr.png",
+        "slperr": "/generated/terrain/site04/slperr.png",
+        "ldec": "/generated/terrain/site04/ldec.png"
+      }
+    },
+    {
+      "dataset_id": "site06",
+      "dataset_name": "NASA LOLA Artemis Site 06 (Nobile Rim)",
+      "source": "NASA Lunar Reconnaissance Orbiter (LRO) / LOLA Instrument Team",
+      "is_regional": false,
+      "resolution_m": 5.0,
+      "resolution_label": "5.0 m/px",
+      "matching_candidates": [
+        "nobile-rim-1"
+      ],
+      "original_raster": {
+        "shape": [
+          4000,
+          4000
+        ],
+        "resolution": 5.0,
+        "crs": "PROJCS[\"unknown\",GEOGCS[\"unknown\",DATUM[\"unknown\",SPHEROID[\"unknown\",1737400,0]],PRIMEM[\"Reference meridian\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Polar_Stereographic\"],PARAMETER[\"latitude_of_origin\",-90],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",NORTH],AXIS[\"Northing\",NORTH]]"
+      },
+      "bounds_polar_m": {
+        "minX": 74000.0,
+        "maxX": 94000.0,
+        "minY": 100000.0,
+        "maxY": 120000.0,
+        "widthM": 20000.0,
+        "heightM": 20000.0
+      },
+      "center": {
+        "lat": -85.4381,
+        "lon": 37.36667,
+        "x_m": 84000.0,
+        "y_m": 110000.0
+      },
+      "lat_range": [
+        -85.8992,
+        -84.9763
+      ],
+      "lon_range": [
+        31.6608,
+        43.2285
+      ],
+      "elevation": {
+        "min_m": 863.91,
+        "max_m": 6799.6,
+        "p1_m": 1245.45,
+        "p99_m": 6755.01,
+        "units": "meters (IAU Moon 2000 R=1737.4 km)"
+      },
+      "slope": {
+        "min_deg": 0.44,
+        "max_deg": 37.3,
+        "display_max_deg": 33.96,
+        "units": "degrees"
+      },
+      "elevation_uncertainty": {
+        "min_m": 0.24,
+        "max_m": 3.95,
+        "display_max_m": 2.0,
+        "units": "meters (1-sigma RMS)"
+      },
+      "slope_uncertainty": {
+        "available": true,
+        "max_deg": 4.12,
+        "units": "degrees"
+      },
+      "observation_density": {
+        "available": true,
+        "max_count": 0,
+        "units": "LOLA laser altimeter shots per pixel"
+      },
+      "layers": {
+        "elev_hill": "/generated/terrain/site06/elev_hill.png",
+        "elev_raw": "/generated/terrain/site06/elev_raw.png",
+        "slope": "/generated/terrain/site06/slope.png",
+        "toterr": "/generated/terrain/site06/toterr.png",
+        "slperr": "/generated/terrain/site06/slperr.png",
+        "ldec": "/generated/terrain/site06/ldec.png"
+      }
+    },
+    {
+      "dataset_id": "site07",
+      "dataset_name": "NASA LOLA Artemis Site 07 (Faustini / Amundsen Rim)",
+      "source": "NASA Lunar Reconnaissance Orbiter (LRO) / LOLA Instrument Team",
+      "is_regional": false,
+      "resolution_m": 5.0,
+      "resolution_label": "5.0 m/px",
+      "matching_candidates": [],
+      "original_raster": {
+        "shape": [
+          3200,
+          3200
+        ],
+        "resolution": 5.0,
+        "crs": "PROJCS[\"unnamed\",GEOGCS[\"unnamed ellipse\",DATUM[\"unknown\",SPHEROID[\"unnamed\",1737400,0]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Polar_Stereographic\"],PARAMETER[\"latitude_of_origin\",-90],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",NORTH],AXIS[\"Northing\",NORTH]]"
+      },
+      "bounds_polar_m": {
+        "minX": 22000.0,
+        "maxX": 38000.0,
+        "minY": -28000.0,
+        "maxY": -12000.0,
+        "widthM": 16000.0,
+        "heightM": 16000.0
+      },
+      "center": {
+        "lat": -88.81101,
+        "lon": 123.69007,
+        "x_m": 30000.0,
+        "y_m": -20000.0
+      },
+      "lat_range": [
+        -89.1736,
+        -88.4435
+      ],
+      "lon_range": [
+        107.5256,
+        141.8428
+      ],
+      "elevation": {
+        "min_m": -415.06,
+        "max_m": 1648.35,
+        "p1_m": -186.97,
+        "p99_m": 1575.8,
+        "units": "meters (IAU Moon 2000 R=1737.4 km)"
+      },
+      "slope": {
+        "min_deg": 0.47,
+        "max_deg": 35.31,
+        "display_max_deg": 30.0,
+        "units": "degrees"
+      },
+      "elevation_uncertainty": {
+        "min_m": 0.18,
+        "max_m": 2.56,
+        "display_max_m": 2.0,
+        "units": "meters (1-sigma RMS)"
+      },
+      "slope_uncertainty": {
+        "available": true,
+        "max_deg": 3.18,
+        "units": "degrees"
+      },
+      "observation_density": {
+        "available": true,
+        "max_count": 0,
+        "units": "LOLA laser altimeter shots per pixel"
+      },
+      "layers": {
+        "elev_hill": "/generated/terrain/site07/elev_hill.png",
+        "elev_raw": "/generated/terrain/site07/elev_raw.png",
+        "slope": "/generated/terrain/site07/slope.png",
+        "toterr": "/generated/terrain/site07/toterr.png",
+        "slperr": "/generated/terrain/site07/slperr.png",
+        "ldec": "/generated/terrain/site07/ldec.png"
+      }
+    },
+    {
+      "dataset_id": "site11",
+      "dataset_name": "NASA LOLA Artemis Site 11 (de Gerlache - Kocher Massif)",
+      "source": "NASA Lunar Reconnaissance Orbiter (LRO) / LOLA Instrument Team",
+      "is_regional": false,
+      "resolution_m": 5.0,
+      "resolution_label": "5.0 m/px",
+      "matching_candidates": [],
+      "original_raster": {
+        "shape": [
+          3200,
+          3200
+        ],
+        "resolution": 5.0,
+        "crs": "PROJCS[\"unnamed\",GEOGCS[\"unnamed ellipse\",DATUM[\"unknown\",SPHEROID[\"unnamed\",1737400,0]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Polar_Stereographic\"],PARAMETER[\"latitude_of_origin\",-90],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",NORTH],AXIS[\"Northing\",NORTH]]"
+      },
+      "bounds_polar_m": {
+        "minX": -45000.0,
+        "maxX": -29000.0,
+        "minY": 7000.0,
+        "maxY": 23000.0,
+        "widthM": 16000.0,
+        "heightM": 16000.0
+      },
+      "center": {
+        "lat": -88.68342,
+        "lon": 292.0679,
+        "x_m": -37000.0,
+        "y_m": 15000.0
+      },
+      "lat_range": [
+        -89.0162,
+        -88.3335
+      ],
+      "lon_range": [
+        278.8418,
+        308.4181
+      ],
+      "elevation": {
+        "min_m": -804.26,
+        "max_m": 1814.23,
+        "p1_m": -634.68,
+        "p99_m": 1743.16,
+        "units": "meters (IAU Moon 2000 R=1737.4 km)"
+      },
+      "slope": {
+        "min_deg": 0.53,
+        "max_deg": 34.78,
+        "display_max_deg": 30.24,
+        "units": "degrees"
+      },
+      "elevation_uncertainty": {
+        "min_m": 0.15,
+        "max_m": 2.77,
+        "display_max_m": 2.0,
+        "units": "meters (1-sigma RMS)"
+      },
+      "slope_uncertainty": {
+        "available": true,
+        "max_deg": 3.03,
+        "units": "degrees"
+      },
+      "observation_density": {
+        "available": true,
+        "max_count": 0,
+        "units": "LOLA laser altimeter shots per pixel"
+      },
+      "layers": {
+        "elev_hill": "/generated/terrain/site11/elev_hill.png",
+        "elev_raw": "/generated/terrain/site11/elev_raw.png",
+        "slope": "/generated/terrain/site11/slope.png",
+        "toterr": "/generated/terrain/site11/toterr.png",
+        "slperr": "/generated/terrain/site11/slperr.png",
+        "ldec": "/generated/terrain/site11/ldec.png"
+      }
+    },
+    {
+      "dataset_id": "site23",
+      "dataset_name": "NASA LOLA Artemis Site 23 (Malapert Massif)",
+      "source": "NASA Lunar Reconnaissance Orbiter (LRO) / LOLA Instrument Team",
+      "is_regional": false,
+      "resolution_m": 5.0,
+      "resolution_label": "5.0 m/px",
+      "matching_candidates": [
+        "malapert"
+      ],
+      "original_raster": {
+        "shape": [
+          4200,
+          4200
+        ],
+        "resolution": 5.0,
+        "crs": "PROJCS[\"unnamed\",GEOGCS[\"unnamed ellipse\",DATUM[\"unknown\",SPHEROID[\"unnamed\",1737400,0]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Polar_Stereographic\"],PARAMETER[\"latitude_of_origin\",-90],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",NORTH],AXIS[\"Northing\",NORTH]]"
+      },
+      "bounds_polar_m": {
+        "minX": -11000.0,
+        "maxX": 10000.0,
+        "minY": 111000.0,
+        "maxY": 132000.0,
+        "widthM": 21000.0,
+        "heightM": 21000.0
+      },
+      "center": {
+        "lat": -85.99478,
+        "lon": 359.76422,
+        "x_m": -500.0,
+        "y_m": 121500.0
+      },
+      "lat_range": [
+        -86.3259,
+        -85.6339
+      ],
+      "lon_range": [
+        4.3323,
+        355.2364
+      ],
+      "elevation": {
+        "min_m": 909.71,
+        "max_m": 5172.75,
+        "p1_m": 1303.83,
+        "p99_m": 5106.97,
+        "units": "meters (IAU Moon 2000 R=1737.4 km)"
+      },
+      "slope": {
+        "min_deg": 0.9,
+        "max_deg": 41.09,
+        "display_max_deg": 33.5,
+        "units": "degrees"
+      },
+      "elevation_uncertainty": {
+        "min_m": 0.2,
+        "max_m": 5.18,
+        "display_max_m": 2.0,
+        "units": "meters (1-sigma RMS)"
+      },
+      "slope_uncertainty": {
+        "available": true,
+        "max_deg": 3.75,
+        "units": "degrees"
+      },
+      "observation_density": {
+        "available": true,
+        "max_count": 0,
+        "units": "LOLA laser altimeter shots per pixel"
+      },
+      "layers": {
+        "elev_hill": "/generated/terrain/site23/elev_hill.png",
+        "elev_raw": "/generated/terrain/site23/elev_raw.png",
+        "slope": "/generated/terrain/site23/slope.png",
+        "toterr": "/generated/terrain/site23/toterr.png",
+        "slperr": "/generated/terrain/site23/slperr.png",
+        "ldec": "/generated/terrain/site23/ldec.png"
+      }
+    },
+    {
+      "dataset_id": "region80m",
+      "dataset_name": "NASA LOLA Regional South Pole Altimetry (80 m/px)",
+      "source": "NASA Lunar Reconnaissance Orbiter (LRO) / LOLA Instrument Team",
+      "is_regional": true,
+      "resolution_m": 80.0,
+      "resolution_label": "80 m/px",
+      "matching_candidates": [
+        "haworth-rim",
+        "de-gerlache-rim"
+      ],
+      "original_raster": {
+        "shape": [
+          7600,
+          7600
+        ],
+        "resolution": 80.0,
+        "crs": "PROJCS[\"Moon (2015) - Sphere / Ocentric / South Polar\",GEOGCS[\"Moon (2015) - Sphere / Ocentric\",DATUM[\"Moon (2015) - Sphere\",SPHEROID[\"Moon (2015) - Sphere\",1737400,0,AUTHORITY[\"IAU\",\"30100\"]],AUTHORITY[\"IAU\",\"30100\"]],PRIMEM[\"Reference Meridian\",0,AUTHORITY[\"IAU\",\"30100\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"IAU\",\"30100\"]],PROJECTION[\"Polar_Stereographic\"],PARAMETER[\"latitude_of_origin\",-90],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",NORTH],AXIS[\"Northing\",NORTH],AUTHORITY[\"IAU\",\"30135\"]]"
+      },
+      "bounds_polar_m": {
+        "minX": -304000.0,
+        "maxX": 304000.0,
+        "minY": -304000.0,
+        "maxY": 304000.0,
+        "widthM": 608000.0,
+        "heightM": 608000.0
+      },
+      "center": {
+        "lat": -90.0,
+        "lon": 0.0,
+        "x_m": 0.0,
+        "y_m": 0.0
+      },
+      "lat_range": [
+        -75.8938,
+        -75.8938
+      ],
+      "lon_range": [
+        45.0,
+        315.0
+      ],
+      "elevation": {
+        "min_m": -7063.5,
+        "max_m": 6961.49,
+        "p1_m": -5353.9,
+        "p99_m": 4309.21,
+        "units": "meters (IAU Moon 2000 R=1737.4 km)"
+      },
+      "slope": {
+        "min_deg": 0.78,
+        "max_deg": 33.44,
+        "display_max_deg": 30.0,
+        "units": "degrees"
+      },
+      "elevation_uncertainty": {
+        "min_m": 0.05,
+        "max_m": 3.11,
+        "display_max_m": 2.0,
+        "units": "meters (1-sigma RMS)"
+      },
+      "slope_uncertainty": {
+        "available": true,
+        "max_deg": 0.41,
+        "units": "degrees"
+      },
+      "observation_density": {
+        "available": true,
+        "max_count": 49,
+        "units": "LOLA laser altimeter shots per pixel"
+      },
+      "layers": {
+        "elev_hill": "/generated/terrain/region80m/elev_hill.png",
+        "elev_raw": "/generated/terrain/region80m/elev_raw.png",
+        "slope": "/generated/terrain/region80m/slope.png",
+        "toterr": "/generated/terrain/region80m/toterr.png",
+        "slperr": "/generated/terrain/region80m/slperr.png",
+        "ldec": "/generated/terrain/region80m/ldec.png"
+      }
+    }
+  ]
+}

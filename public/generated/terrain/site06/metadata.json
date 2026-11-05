@@ -1,0 +1,78 @@
+{
+  "dataset_id": "site06",
+  "dataset_name": "NASA LOLA Artemis Site 06 (Nobile Rim)",
+  "source": "NASA Lunar Reconnaissance Orbiter (LRO) / LOLA Instrument Team",
+  "is_regional": false,
+  "resolution_m": 5.0,
+  "resolution_label": "5.0 m/px",
+  "matching_candidates": [
+    "nobile-rim-1"
+  ],
+  "original_raster": {
+    "shape": [
+      4000,
+      4000
+    ],
+    "resolution": 5.0,
+    "crs": "PROJCS[\"unknown\",GEOGCS[\"unknown\",DATUM[\"unknown\",SPHEROID[\"unknown\",1737400,0]],PRIMEM[\"Reference meridian\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Polar_Stereographic\"],PARAMETER[\"latitude_of_origin\",-90],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",NORTH],AXIS[\"Northing\",NORTH]]"
+  },
+  "bounds_polar_m": {
+    "minX": 74000.0,
+    "maxX": 94000.0,
+    "minY": 100000.0,
+    "maxY": 120000.0,
+    "widthM": 20000.0,
+    "heightM": 20000.0
+  },
+  "center": {
+    "lat": -85.4381,
+    "lon": 37.36667,
+    "x_m": 84000.0,
+    "y_m": 110000.0
+  },
+  "lat_range": [
+    -85.8992,
+    -84.9763
+  ],
+  "lon_range": [
+    31.6608,
+    43.2285
+  ],
+  "elevation": {
+    "min_m": 863.91,
+    "max_m": 6799.6,
+    "p1_m": 1245.45,
+    "p99_m": 6755.01,
+    "units": "meters (IAU Moon 2000 R=1737.4 km)"
+  },
+  "slope": {
+    "min_deg": 0.44,
+    "max_deg": 37.3,
+    "display_max_deg": 33.96,
+    "units": "degrees"
+  },
+  "elevation_uncertainty": {
+    "min_m": 0.24,
+    "max_m": 3.95,
+    "display_max_m": 2.0,
+    "units": "meters (1-sigma RMS)"
+  },
+  "slope_uncertainty": {
+    "available": true,
+    "max_deg": 4.12,
+    "units": "degrees"
+  },
+  "observation_density": {
+    "available": true,
+    "max_count": 0,
+    "units": "LOLA laser altimeter shots per pixel"
+  },
+  "layers": {
+    "elev_hill": "/generated/terrain/site06/elev_hill.png",
+    "elev_raw": "/generated/terrain/site06/elev_raw.png",
+    "slope": "/generated/terrain/site06/slope.png",
+    "toterr": "/generated/terrain/site06/toterr.png",
+    "slperr": "/generated/terrain/site06/slperr.png",
+    "ldec": "/generated/terrain/site06/ldec.png"
+  }
+}

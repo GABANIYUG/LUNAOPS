@@ -1,0 +1,76 @@
+{
+  "dataset_id": "site11",
+  "dataset_name": "NASA LOLA Artemis Site 11 (de Gerlache - Kocher Massif)",
+  "source": "NASA Lunar Reconnaissance Orbiter (LRO) / LOLA Instrument Team",
+  "is_regional": false,
+  "resolution_m": 5.0,
+  "resolution_label": "5.0 m/px",
+  "matching_candidates": [],
+  "original_raster": {
+    "shape": [
+      3200,
+      3200
+    ],
+    "resolution": 5.0,
+    "crs": "PROJCS[\"unnamed\",GEOGCS[\"unnamed ellipse\",DATUM[\"unknown\",SPHEROID[\"unnamed\",1737400,0]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Polar_Stereographic\"],PARAMETER[\"latitude_of_origin\",-90],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",NORTH],AXIS[\"Northing\",NORTH]]"
+  },
+  "bounds_polar_m": {
+    "minX": -45000.0,
+    "maxX": -29000.0,
+    "minY": 7000.0,
+    "maxY": 23000.0,
+    "widthM": 16000.0,
+    "heightM": 16000.0
+  },
+  "center": {
+    "lat": -88.68342,
+    "lon": 292.0679,
+    "x_m": -37000.0,
+    "y_m": 15000.0
+  },
+  "lat_range": [
+    -89.0162,
+    -88.3335
+  ],
+  "lon_range": [
+    278.8418,
+    308.4181
+  ],
+  "elevation": {
+    "min_m": -804.26,
+    "max_m": 1814.23,
+    "p1_m": -634.68,
+    "p99_m": 1743.16,
+    "units": "meters (IAU Moon 2000 R=1737.4 km)"
+  },
+  "slope": {
+    "min_deg": 0.53,
+    "max_deg": 34.78,
+    "display_max_deg": 30.24,
+    "units": "degrees"
+  },
+  "elevation_uncertainty": {
+    "min_m": 0.15,
+    "max_m": 2.77,
+    "display_max_m": 2.0,
+    "units": "meters (1-sigma RMS)"
+  },
+  "slope_uncertainty": {
+    "available": true,
+    "max_deg": 3.03,
+    "units": "degrees"
+  },
+  "observation_density": {
+    "available": true,
+    "max_count": 0,
+    "units": "LOLA laser altimeter shots per pixel"
+  },
+  "layers": {
+    "elev_hill": "/generated/terrain/site11/elev_hill.png",
+    "elev_raw": "/generated/terrain/site11/elev_raw.png",
+    "slope": "/generated/terrain/site11/slope.png",
+    "toterr": "/generated/terrain/site11/toterr.png",
+    "slperr": "/generated/terrain/site11/slperr.png",
+    "ldec": "/generated/terrain/site11/ldec.png"
+  }
+}
