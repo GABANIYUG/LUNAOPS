@@ -1,4 +1,5 @@
 import { ExportPanel } from './exportPanel';
+import { SOUTH_POLE_SITES } from './southPoleOverlay';
 /**
  * missionWorkspace.ts — LUNAOPS Mission Scenario Configuration Workspace.
  *
@@ -195,13 +196,33 @@ export class MissionWorkspace {
   }
 
   /**
-   * Called when the user clicks on the 3D Moon to update site coordinates.
+   * Called when the user clicks on the 3D Moon or selects a site to update coordinates.
    */
-  public setCoordinatesFromGlobe(latDeg: number, lonDeg: number) {
+  public setCoordinatesFromGlobe(
+    latDeg: number,
+    lonDeg: number,
+    siteName?: string,
+    designation?: string
+  ) {
     this.selectedSite.latitudeDeg = Math.round(latDeg * 1000) / 1000;
     this.selectedSite.longitudeDeg = Math.round(lonDeg * 1000) / 1000;
-    this.selectedSite.name = 'Custom Selected Location';
-    this.selectedSite.designation = 'User Chosen Site';
+
+    // Check if explicit candidate name provided (and not generic 'Custom')
+    if (siteName && !siteName.toLowerCase().includes('custom')) {
+      this.selectedSite.name = siteName;
+      this.selectedSite.designation = designation || 'Landing Candidate';
+    } else {
+      const match = SOUTH_POLE_SITES.find(
+        (p) => Math.abs(p.lat - latDeg) < 0.08 && Math.abs(p.lon - lonDeg) < 0.08
+      );
+      if (match) {
+        this.selectedSite.name = match.name;
+        this.selectedSite.designation = match.designation;
+      } else {
+        this.selectedSite.name = siteName || 'Custom Selected Location';
+        this.selectedSite.designation = designation || 'User Chosen Site';
+      }
+    }
     this.updateSiteCoverageAndSample();
     if (this.isOpen) this.render();
   }
@@ -252,6 +273,13 @@ export class MissionWorkspace {
       this.selectedSite.pixelCoords = undefined;
       const { x, y } = selenographicToPolarStereo(lon, lat);
       this.selectedSite.polarStereoM = { x, y };
+
+      const match = SOUTH_POLE_SITES.find(
+        (p) => Math.abs(p.lat - lat) < 0.08 && Math.abs(p.lon - lon) < 0.08
+      );
+      if (match) {
+        this.selectedSite.elevationM = match.elevationM;
+      }
     }
 
     if (this.onSiteChangedCallback) {

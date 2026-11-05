@@ -620,8 +620,17 @@ export async function checkHealth(panel: HTMLElement, triggerNotice = false): Pr
   }
 }
 
+let _currentFetchPromise: Promise<boolean> | null = null;
+
 async function triggerFetch(panel: HTMLElement): Promise<boolean> {
-  if (_fetchInFlight) return false;
+  // If a fetch is currently in flight, wait for it so callers do not receive a false failure
+  if (_fetchInFlight && _currentFetchPromise) {
+    try {
+      await _currentFetchPromise;
+    } catch {
+      /* ignore */
+    }
+  }
   _fetchInFlight = true;
 
   const loading = panel.querySelector<HTMLDivElement>('#spice-loading')!;
@@ -631,6 +640,7 @@ async function triggerFetch(panel: HTMLElement): Promise<boolean> {
   loading.style.display = 'flex';
   errorBox.style.display = 'none';
 
+  _currentFetchPromise = (async (): Promise<boolean> => {
   try {
     const timeInput = panel.querySelector<HTMLInputElement>('#spice-time-input')!;
     const latInput  = panel.querySelector<HTMLInputElement>('#spice-lat')!;
@@ -693,7 +703,10 @@ async function triggerFetch(panel: HTMLElement): Promise<boolean> {
   } finally {
     loading.style.display = 'none';
     _fetchInFlight = false;
+    _currentFetchPromise = null;
   }
+  })();
+  return await _currentFetchPromise;
 }
 
 function displayResults(

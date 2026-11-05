@@ -322,7 +322,7 @@ export class SouthPoleOverlay {
     this.disposables.push(dotGeo, dotMat);
 
     // ── Invisible hitbox for raycasting
-    const hitGeo = new THREE.SphereGeometry(0.055, 8, 8);
+    const hitGeo = new THREE.SphereGeometry(0.022, 8, 8);
     const hitMat = new THREE.MeshBasicMaterial({ visible: false });
     const hit = new THREE.Mesh(hitGeo, hitMat);
     hit.userData = { site: SOUTH_POLE_SITES.find(s => s.id === 'south-pole') };
@@ -356,8 +356,8 @@ export class SouthPoleOverlay {
         this._buildSecondaryMarker(grp, color);
       }
 
-      // ── Hitbox sphere (invisible, large for easy clicking)
-      const hitGeo = new THREE.SphereGeometry(0.040, 8, 8);
+      // ── Hitbox sphere (invisible, calibrated for easy clicking)
+      const hitGeo = new THREE.SphereGeometry(0.022, 8, 8);
       const hitMat = new THREE.MeshBasicMaterial({ visible: false });
       const hit = new THREE.Mesh(hitGeo, hitMat);
       hit.position.y = 0.02;
@@ -536,11 +536,23 @@ export class SouthPoleOverlay {
     this.raycaster.setFromCamera(this.mouse, camera);
     const hits = this.raycaster.intersectObjects(this.interactiveMarkers, false);
     if (hits.length > 0) {
-      const site = hits[0].object.userData.site as SiteInfo;
-      if (site) {
-        this.highlightSite(site.id);
-        this.onSelectSiteCallback?.(site);
-        return site;
+      let bestSite: SiteInfo | null = null;
+      let minSiteDist = Infinity;
+      for (const h of hits) {
+        const s = h.object.userData.site as SiteInfo;
+        if (!s) continue;
+        const grp = this.siteMarkerGroups.get(s.id);
+        const markerPos = grp ? grp.position : h.object.position;
+        const d = h.point.distanceTo(markerPos);
+        if (d < minSiteDist) {
+          minSiteDist = d;
+          bestSite = s;
+        }
+      }
+      if (bestSite) {
+        this.highlightSite(bestSite.id);
+        this.onSelectSiteCallback?.(bestSite);
+        return bestSite;
       }
     }
     return null;

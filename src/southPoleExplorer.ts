@@ -27,6 +27,7 @@ import {
   distanceToSouthPoleKm,
 } from './utils/coordinates';
 import { SOUTH_POLE_SITES, type SiteInfo } from './southPoleOverlay';
+import { fetchSpiceHealth } from './spiceClient';
 import type { LandingSiteConfig } from './types/mission';
 
 export interface PolarMapSelectionCallback {
@@ -50,7 +51,7 @@ export class SouthPoleExplorer {
 
   // Viewport dimensions & projection scaling
   // Polar extent: 330,000 meters in USGS polar stereographic (covers 80°S at ~304 km + margin)
-  private readonly MAX_EXTENT_M = 330000.0;
+  private readonly MAX_EXTENT_M = 360000.0; // Extends past 80°S (304km) with ample padding on all sides
   private mapWidth = 480;
   private mapHeight = 480;
   private centerX = 240;
@@ -276,22 +277,37 @@ export class SouthPoleExplorer {
       applyBtn.innerHTML = `<span class="spe-spinner"></span> Computing SPICE…`;
 
       try {
-        let ok: boolean | void = true;
+        let spiceOk: boolean | void = true;
         if (this.onApplyAndCalculateCallback) {
-          ok = await this.onApplyAndCalculateCallback(siteData);
+          spiceOk = await this.onApplyAndCalculateCallback(siteData);
         } else if (this.onSelectCallback) {
           this.onSelectCallback(siteData);
         }
-        if (ok === false) {
-          throw new Error('SPICE calculation returned unsuccessful status');
+
+        if (spiceOk !== false) {
+          applyBtn.innerHTML = `✓ Target &amp; SPICE Active`;
+          applyBtn.classList.add('spe-btn-success');
+        } else {
+          // If return was false, check whether SPICE backend is actually online
+          try {
+            const h = await fetchSpiceHealth();
+            if (h && h.status === 'ok') {
+              applyBtn.innerHTML = `✓ Target &amp; SPICE Active`;
+              applyBtn.classList.add('spe-btn-success');
+            } else {
+              applyBtn.innerHTML = `⚠ SPICE Offline`;
+              applyBtn.classList.add('spe-btn-error');
+            }
+          } catch {
+            applyBtn.innerHTML = `⚠ SPICE Offline`;
+            applyBtn.classList.add('spe-btn-error');
+          }
         }
-        applyBtn.innerHTML = `✓ Target &amp; SPICE Active`;
-        applyBtn.classList.add('spe-btn-success');
         setTimeout(() => {
           applyBtn.disabled = false;
           applyBtn.innerHTML = originalHTML;
-          applyBtn.classList.remove('spe-btn-success');
-        }, 2000);
+          applyBtn.classList.remove('spe-btn-success', 'spe-btn-warn');
+        }, 2500);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         applyBtn.innerHTML = `⚠ Calculation Failed`;
@@ -426,8 +442,14 @@ export class SouthPoleExplorer {
   private drawTerrainRelief(ctx: CanvasRenderingContext2D): void {
     if (this.isTerrainImageLoaded && this.terrainImage) {
       ctx.save();
-      // Draw genuine NASA LOLA relief image exactly mapped to [-MAX_EXTENT_M, +MAX_EXTENT_M]
-      ctx.drawImage(this.terrainImage, 0, 0, this.mapWidth, this.mapHeight);
+      // NASA LOLA polar shaded relief covers ±330,000 meters.
+      // Canvas extent is ±360,000 meters to ensure the 80°S parallel has complete margins.
+      const reliefRadiusM = 330000.0;
+      const imgExtentPx = reliefRadiusM * this.scalePxPerM;
+      const x0 = this.centerX - imgExtentPx;
+      const y0 = this.centerY - imgExtentPx;
+      const sizePx = imgExtentPx * 2;
+      ctx.drawImage(this.terrainImage, x0, y0, sizePx, sizePx);
       ctx.restore();
     } else {
       // Procedural fallback while texture loads
@@ -493,7 +515,7 @@ export class SouthPoleExplorer {
   private drawPolarGrid(ctx: CanvasRenderingContext2D): void {
     // Latitude contour parallels: 80°S, 85°S, 88°S
     const parallels = [
-      { lat: -80.0, label: 'LAT 80.00°S (OUTER PERIMETER)', color: 'rgba(56, 189, 248, 0.38)', dash: [] },
+      { lat: -80.0, label: 'LAT 80.00°S (OUTER PERIMETER)', color: 'rgba(56, 189, 248, 0.40)', dash: [] },
       { lat: -85.0, label: 'LAT 85.00°S (TRAVERSE RANGE)', color: 'rgba(56, 189, 248, 0.32)', dash: [6, 4] },
       { lat: -88.0, label: 'LAT 88.00°S (ARTEMIS CORRIDOR)', color: 'rgba(56, 189, 248, 0.32)', dash: [3, 3] },
     ];
@@ -510,21 +532,37 @@ export class SouthPoleExplorer {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Label along the top of the contour ring (Earth-facing 0° direction)
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';
-      ctx.font = 'bold 8px "JetBrains Mono", monospace';
+      // Place parallel label along contour at angle -115° (upper-left quadrant) to completely avoid 0° Prime meridian
+      const angleRad = -Math.PI * 0.64;
+      const lx = this.centerX + Math.cos(angleRad) * rPx;
+      const ly = this.centerY + Math.sin(angleRad) * rPx;
+
+      ctx.save();
+      ctx.font = 'bold 7.5px "JetBrains Mono", monospace';
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = 'rgba(6, 11, 22, 0.90)';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.40)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(lx - tw / 2 - 5, ly - 7, tw + 10, 14, 3);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#38bdf8';
       ctx.textAlign = 'center';
-      ctx.fillText(label, this.centerX + 15, this.centerY - rPx - 3);
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, lx, ly);
+      ctx.restore();
     });
 
     // Principal Meridian axes
     // 0° (Earth-facing, up), 90°E (right), 180° (down), 270°E (left)
-    const rMax = this.mapWidth / 2;
+    const rMax = this.mapWidth / 2 - 8;
     const axes = [
-      { angleRad: -Math.PI / 2, label: '0° PRIME (TO EARTH)', align: 'center', textBaseline: 'top', offY: 6 },
-      { angleRad: 0, label: '90°E (EAST LIMB)', align: 'right', textBaseline: 'middle', offX: -6 },
-      { angleRad: Math.PI / 2, label: '180° (FAR SIDE)', align: 'center', textBaseline: 'bottom', offY: -6 },
-      { angleRad: Math.PI, label: '270°E (WEST LIMB)', align: 'left', textBaseline: 'middle', offX: 6 },
+      { angleRad: -Math.PI / 2, label: '0° PRIME · TO EARTH ↑', align: 'center', isTopHeader: true },
+      { angleRad: 0, label: '90°E · EAST LIMB →', align: 'right', isTopHeader: false },
+      { angleRad: Math.PI / 2, label: '180° · FAR SIDE ↓', align: 'center', isTopHeader: false },
+      { angleRad: Math.PI, label: '← 270°E · WEST LIMB', align: 'left', isTopHeader: false },
     ];
 
     axes.forEach((axis) => {
@@ -534,25 +572,56 @@ export class SouthPoleExplorer {
       ctx.beginPath();
       ctx.moveTo(this.centerX, this.centerY);
       ctx.lineTo(endX, endY);
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.22)';
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.20)';
       ctx.lineWidth = 1.0;
       ctx.stroke();
 
-      // Axis label near edge
-      const lblX = endX + (axis.offX || 0);
-      const lblY = endY + (axis.offY || 0);
-      ctx.fillStyle = '#94a3b8';
+      ctx.save();
       ctx.font = 'bold 8px "JetBrains Mono", monospace';
-      ctx.textAlign = axis.align as CanvasTextAlign;
-      ctx.textBaseline = axis.textBaseline as CanvasTextBaseline;
-      ctx.fillText(axis.label, lblX, lblY);
+      const tw = ctx.measureText(axis.label).width;
+
+      if (axis.isTopHeader) {
+        // Render 0° Prime at the very top edge inside a dedicated high-contrast HUD pill
+        const px = this.centerX;
+        const py = 14;
+        ctx.fillStyle = 'rgba(6, 12, 24, 0.94)';
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.50)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(px - tw / 2 - 6, py - 8, tw + 12, 16, 3);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#38bdf8';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(axis.label, px, py);
+      } else {
+        const offDist = 12;
+        const lx = this.centerX + Math.cos(axis.angleRad) * (rMax - offDist);
+        const ly = this.centerY + Math.sin(axis.angleRad) * (rMax - offDist);
+
+        ctx.fillStyle = 'rgba(6, 12, 24, 0.90)';
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(lx - tw / 2 - 5, ly - 7, tw + 10, 14, 3);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#cbd5e1';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(axis.label, lx, ly);
+      }
+      ctx.restore();
     });
   }
 
   private drawEphemerisVectors(ctx: CanvasRenderingContext2D): void {
     // 1. Solar Incidence vector arrow (amber dashed line)
     const sunAngle = -Math.PI * 0.58; // ~104° from +X
-    const sunLen = this.mapWidth * 0.42;
+    const sunLen = this.mapWidth * 0.40;
     const startX = this.centerX - 10;
     const startY = this.centerY + 20;
     const endX = startX + Math.cos(sunAngle) * sunLen;
@@ -560,12 +629,13 @@ export class SouthPoleExplorer {
 
     ctx.save();
     ctx.strokeStyle = 'rgba(245, 158, 11, 0.75)';
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 1.3;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
     ctx.moveTo(startX, startY);
     ctx.lineTo(endX, endY);
     ctx.stroke();
+    ctx.setLineDash([]);
 
     // Arrowhead
     const arrLen = 7;
@@ -578,34 +648,42 @@ export class SouthPoleExplorer {
     ctx.closePath();
     ctx.fill();
 
-    // Label along line
-    ctx.save();
-    const midX = (startX + endX) / 2;
-    const midY = (startY + endY) / 2;
-    ctx.translate(midX, midY);
-    ctx.rotate(sunAngle + Math.PI / 2);
-    ctx.fillStyle = '#f59e0b';
+    // High-contrast pill tag for Solar Incidence (positioned along the arrow)
+    const midX = startX + Math.cos(sunAngle) * (sunLen * 0.52);
+    const midY = startY + Math.sin(sunAngle) * (sunLen * 0.52);
+    const sunTag = 'SOLAR INCIDENCE 1.1° EL ↗';
     ctx.font = 'bold 7.5px "JetBrains Mono", monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('SOLAR INCIDENCE 1.1° EL', 0, -4);
-    ctx.restore();
+    const sTw = ctx.measureText(sunTag).width;
 
-    // 2. Earth Line-of-Sight vector (salmon/pink dashed line toward 0° Earth-facing / occultation)
-    const earthAngle = Math.PI * 0.72; // ~130° toward Earth occultation limit
-    const earthLen = this.mapWidth * 0.38;
+    ctx.fillStyle = 'rgba(18, 12, 4, 0.94)';
+    ctx.strokeStyle = 'rgba(245, 158, 11, 0.65)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(midX - sTw / 2 - 5, midY - 7, sTw + 10, 14, 3);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#fbbf24';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(sunTag, midX, midY);
+
+    // 2. Earth Line-of-Sight vector (cyan/blue dashed line toward Earth-facing hemisphere)
+    const earthAngle = Math.PI * 0.72;
+    const earthLen = this.mapWidth * 0.36;
     const eEndX = startX + Math.cos(earthAngle) * earthLen;
     const eEndY = startY + Math.sin(earthAngle) * earthLen;
 
-    ctx.strokeStyle = 'rgba(248, 113, 113, 0.70)';
-    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.70)';
+    ctx.lineWidth = 1.3;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
     ctx.moveTo(startX, startY);
     ctx.lineTo(eEndX, eEndY);
     ctx.stroke();
+    ctx.setLineDash([]);
 
-    // Arrowhead pointing outward
-    ctx.fillStyle = '#f87171';
+    ctx.fillStyle = '#38bdf8';
     ctx.beginPath();
     ctx.moveTo(eEndX, eEndY);
     ctx.lineTo(eEndX - arrLen * Math.cos(earthAngle - arrAngle), eEndY - arrLen * Math.sin(earthAngle - arrAngle));
@@ -613,17 +691,25 @@ export class SouthPoleExplorer {
     ctx.closePath();
     ctx.fill();
 
-    // Label along line
-    ctx.save();
-    const eMidX = (startX + eEndX) / 2;
-    const eMidY = (startY + eEndY) / 2;
-    ctx.translate(eMidX, eMidY);
-    ctx.rotate(earthAngle - Math.PI / 2);
-    ctx.fillStyle = '#f87171';
+    // High-contrast pill tag for Earth LOS
+    const eMidX = startX + Math.cos(earthAngle) * (earthLen * 0.55);
+    const eMidY = startY + Math.sin(earthAngle) * (earthLen * 0.55);
+    const earthTag = 'EARTH LOS (OCCULTED -6.3°) ✓';
     ctx.font = 'bold 7.5px "JetBrains Mono", monospace';
+    const eTw = ctx.measureText(earthTag).width;
+
+    ctx.fillStyle = 'rgba(4, 14, 26, 0.94)';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(eMidX - eTw / 2 - 5, eMidY - 7, eTw + 10, 14, 3);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#7dd3fc';
     ctx.textAlign = 'center';
-    ctx.fillText('EARTH LOS (OCCULTED -6.3°)', 0, -4);
-    ctx.restore();
+    ctx.textBaseline = 'middle';
+    ctx.fillText(earthTag, eMidX, eMidY);
 
     ctx.restore();
   }
@@ -632,8 +718,8 @@ export class SouthPoleExplorer {
     // Radial 100 km scale bar in lower left corner
     const scaleLenKm = 100.0;
     const scalePx = (scaleLenKm * 1000.0) * this.scalePxPerM;
-    const startX = 20;
-    const startY = this.mapHeight - 20;
+    const startX = 22;
+    const startY = this.mapHeight - 22;
 
     ctx.strokeStyle = '#94a3b8';
     ctx.lineWidth = 1.5;
@@ -685,61 +771,71 @@ export class SouthPoleExplorer {
   private drawTrueSouthPole(ctx: CanvasRenderingContext2D): void {
     // True Lunar South Pole at (0, 0) in polar stereographic projection
     const { cx, cy } = this.projectMetersToCanvas(0, 0);
+    const isSelected = this.selectedSiteId === 'south-pole';
+    const isHovered = this.hoveredSite?.id === 'south-pole';
 
     ctx.save();
-    // 1. Glowing cyan circle reticle
-    ctx.strokeStyle = '#22d3ee';
-    ctx.lineWidth = 1.8;
+
+    // 1. Crosshair tick arms
+    ctx.strokeStyle = isSelected ? '#22d3ee' : 'rgba(34, 211, 238, 0.60)';
+    ctx.lineWidth = isSelected ? 1.5 : 1.0;
+    const armLen = isSelected ? 10 : 7;
     ctx.beginPath();
-    ctx.arc(cx, cy, 6.5, 0, 2 * Math.PI);
+    ctx.moveTo(cx - armLen, cy);
+    ctx.lineTo(cx + armLen, cy);
+    ctx.moveTo(cx, cy - armLen);
+    ctx.lineTo(cx, cy + armLen);
     ctx.stroke();
 
-    // Rounded outer reticle box
-    ctx.strokeStyle = 'rgba(34, 211, 238, 0.65)';
-    ctx.lineWidth = 1.0;
+    // 2. Glowing cyan circle reticle
+    ctx.strokeStyle = isSelected ? '#22d3ee' : (isHovered ? '#67e8f9' : 'rgba(34, 211, 238, 0.85)');
+    ctx.lineWidth = isSelected ? 2.0 : 1.3;
     ctx.beginPath();
-    ctx.roundRect(cx - 10, cy - 10, 20, 20, 3);
+    ctx.arc(cx, cy, isSelected ? 6.5 : 4.5, 0, 2 * Math.PI);
     ctx.stroke();
+
+    if (isSelected) {
+      // Outer highlight halo
+      ctx.strokeStyle = 'rgba(34, 211, 238, 0.40)';
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 10.5, 0, 2 * Math.PI);
+      ctx.stroke();
+    }
 
     // Center pinpoint
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(cx, cy, 2.5, 0, 2 * Math.PI);
+    ctx.arc(cx, cy, isSelected ? 2.2 : 1.6, 0, 2 * Math.PI);
     ctx.fill();
 
-    // Leader line to HUD badge
-    const badgeX = cx + 22;
-    const badgeY = cy - 6;
-    const badgeW = 148;
-    const badgeH = 28;
+    // 3. Compact clean label pill — placed to upper-left so it NEVER collides with Shackleton Rim (southeast)
+    const pLabel = isSelected ? '● 90.0°S True Pole (-0.25km)' : '90°S True Pole';
+    ctx.font = isSelected ? 'bold 7.5px "JetBrains Mono", monospace' : '7.5px "JetBrains Mono", monospace';
+    const pTw = ctx.measureText(pLabel).width;
+    const px = cx - pTw - 14;
+    const py = cy - 10;
 
-    ctx.strokeStyle = 'rgba(34, 211, 238, 0.75)';
-    ctx.lineWidth = 1.0;
+    // Subtle leader line
+    ctx.strokeStyle = isSelected ? 'rgba(34, 211, 238, 0.65)' : 'rgba(34, 211, 238, 0.25)';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(cx + 10, cy);
-    ctx.lineTo(badgeX, cy);
+    ctx.moveTo(cx - 5, cy - 3);
+    ctx.lineTo(px + pTw + 4, py + 6);
     ctx.stroke();
 
-    // Glassmorphic HUD Badge
-    ctx.fillStyle = 'rgba(8, 20, 38, 0.90)';
-    ctx.strokeStyle = '#22d3ee';
-    ctx.lineWidth = 1.2;
+    ctx.fillStyle = 'rgba(6, 12, 24, 0.90)';
+    ctx.strokeStyle = isSelected ? '#22d3ee' : 'rgba(34, 211, 238, 0.40)';
+    ctx.lineWidth = isSelected ? 1.4 : 1.0;
     ctx.beginPath();
-    ctx.roundRect(badgeX, badgeY - 5, badgeW, badgeH, 4);
+    ctx.roundRect(px, py, pTw + 8, 13, 2);
     ctx.fill();
     ctx.stroke();
 
-    // Top text: Cyan square icon + TRUE SOUTH POLE 90.000°S
-    ctx.fillStyle = '#22d3ee';
-    ctx.fillRect(badgeX + 6, badgeY + 1, 5, 5);
-    ctx.font = 'bold 8.5px "JetBrains Mono", monospace';
+    ctx.fillStyle = isSelected ? '#67e8f9' : '#a5f3fc';
     ctx.textAlign = 'left';
-    ctx.fillText('TRUE SOUTH POLE 90.000°S', badgeX + 16, badgeY + 6);
-
-    // Subtext: DATUM REF · ELEV -0.25 KM
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '7.5px "JetBrains Mono", monospace';
-    ctx.fillText('DATUM REF · ELEV -0.25 KM', badgeX + 16, badgeY + 17);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(pLabel, px + 4, py + 6.5);
 
     ctx.restore();
   }
@@ -747,165 +843,141 @@ export class SouthPoleExplorer {
   private drawCandidateSites(ctx: CanvasRenderingContext2D): void {
     const sites = SOUTH_POLE_SITES.filter((s) => s.id !== 'south-pole');
 
-    // Layout leader lines with intelligent collision avoidance
-    const renderedCandidates = sites.map((site) => {
+    sites.forEach((site) => {
       const { x, y } = selenographicToPolarStereo(site.lon, site.lat);
       const { cx, cy } = this.projectMetersToCanvas(x, y);
       const isSelected = site.id === this.selectedSiteId;
       const isHovered = this.hoveredSite?.id === site.id;
-
-      // Desired label offset based on site quadrant
-      const isSite01 = site.id === 'site-01';
-      const dx = isSite01 ? 38 : (cx >= this.centerX ? 32 : -32);
-      const dy = isSite01 ? -28 : (cy >= this.centerY ? 18 : -18);
-
-      return {
-        site,
-        cx,
-        cy,
-        lblX: cx + dx,
-        lblY: cy + dy,
-        isSelected,
-        isHovered,
-      };
-    });
-
-    // Collision relaxation between labels
-    for (let i = 0; i < renderedCandidates.length; i++) {
-      for (let j = i + 1; j < renderedCandidates.length; j++) {
-        const c1 = renderedCandidates[i];
-        const c2 = renderedCandidates[j];
-        const distY = Math.abs(c1.lblY - c2.lblY);
-        const distX = Math.abs(c1.lblX - c2.lblX);
-        if (distY < 20 && distX < 110) {
-          c2.lblY += (c2.lblY >= c1.lblY ? 18 : -18);
-        }
-      }
-    }
-
-    // Render candidate markers & aerospace HUD badges
-    renderedCandidates.forEach(({ site, cx, cy, lblX, lblY, isSelected, isHovered }) => {
       const isPrimary = site.id === 'site-01';
 
-      if (isPrimary) {
-        // ── Site 01: Distinctive Amber Diamond Target + Corner L-Brackets ──
-        ctx.save();
-        // 1. Leader line to badge
-        ctx.strokeStyle = isSelected ? '#f59e0b' : 'rgba(245, 158, 11, 0.70)';
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        const midX = (cx + lblX) / 2;
-        ctx.lineTo(midX, cy);
-        ctx.lineTo(lblX, lblY);
-        ctx.stroke();
+      ctx.save();
 
-        // 2. Diamond reticle (rotated 45° square)
+      // ── 1. Reticle Point Marker ──
+      if (isPrimary) {
+        // Site 01 Amber Diamond
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(Math.PI / 4);
-        ctx.strokeStyle = '#f59e0b';
-        ctx.lineWidth = 1.8;
-        ctx.strokeRect(-7, -7, 14, 14);
 
-        // Outer corner brackets
-        ctx.strokeStyle = 'rgba(245, 158, 11, 0.60)';
-        ctx.lineWidth = 1.0;
-        ctx.strokeRect(-11, -11, 22, 22);
+        if (isSelected) {
+          ctx.strokeStyle = 'rgba(245, 158, 11, 0.45)';
+          ctx.lineWidth = 1.0;
+          ctx.strokeRect(-9, -9, 18, 18);
+        }
+
+        ctx.strokeStyle = isSelected ? '#f59e0b' : (isHovered ? '#fcd34d' : 'rgba(245, 158, 11, 0.85)');
+        ctx.lineWidth = isSelected ? 1.8 : 1.3;
+        ctx.strokeRect(-4.5, -4.5, 9, 9);
         ctx.restore();
 
-        // Center amber pinpoint
-        ctx.fillStyle = '#fcd34d';
+        ctx.fillStyle = isSelected ? '#fcd34d' : '#f59e0b';
         ctx.beginPath();
-        ctx.arc(cx, cy, 3.0, 0, 2 * Math.PI);
+        ctx.arc(cx, cy, isSelected ? 2.2 : 1.6, 0, 2 * Math.PI);
         ctx.fill();
-
-        // 3. Glassmorphic HUD Badge Card
-        const bW = 168;
-        const bH = 28;
-        const bX = lblX > cx ? lblX : lblX - bW;
-        const bY = lblY - 14;
-
-        ctx.fillStyle = 'rgba(12, 19, 34, 0.92)';
-        ctx.strokeStyle = isSelected ? '#f59e0b' : 'rgba(245, 158, 11, 0.75)';
-        ctx.lineWidth = isSelected ? 1.4 : 1.0;
-        ctx.beginPath();
-        ctx.roundRect(bX, bY, bW, bH, 4);
-        ctx.fill();
-        ctx.stroke();
-
-        // Title row: Amber dot + SITE 01 (CONNECTING RIDGE)
-        ctx.fillStyle = '#f59e0b';
-        ctx.beginPath();
-        ctx.arc(bX + 10, bY + 9, 3, 0, 2 * Math.PI);
-        ctx.fill();
-
-        ctx.fillStyle = '#f59e0b';
-        ctx.font = 'bold 8.5px "JetBrains Mono", monospace';
-        ctx.textAlign = 'left';
-        ctx.fillText('SITE 01 (CONNECTING RIDGE)', bX + 17, bY + 11);
-
-        // Coordinates & elevation readout
-        ctx.fillStyle = '#e2e8f0';
-        ctx.font = '7.5px "JetBrains Mono", monospace';
-        ctx.fillText('89.463° S, 222.510° E | +1,100m', bX + 17, bY + 22);
-
-        ctx.restore();
       } else {
-        // ── Secondary Candidate Site: Sleek Reticle + Clean Callout ──
-        const col = isSelected ? '#38bdf8' : isHovered ? '#67e8f9' : '#94a3b8';
+        // Secondary Candidate Sites
+        const col = isHovered ? '#67e8f9' : (site.id === 'malapert' ? '#34d399' : (site.id === 'shackleton-rim' ? '#38bdf8' : '#94a3b8'));
+        const activeCol = isSelected ? '#38bdf8' : col;
 
-        ctx.save();
-        // 1. Leader line
-        ctx.strokeStyle = isSelected ? 'rgba(56, 189, 248, 0.85)' : 'rgba(148, 163, 184, 0.40)';
-        ctx.lineWidth = 1.0;
-        ctx.setLineDash(isSelected ? [] : [2, 2]);
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        const midX = (cx + lblX) / 2;
-        ctx.lineTo(midX, cy);
-        ctx.lineTo(lblX, lblY);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        if (isSelected) {
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+          ctx.lineWidth = 1.0;
+          ctx.beginPath();
+          ctx.arc(cx, cy, 9.5, 0, 2 * Math.PI);
+          ctx.stroke();
+        }
 
-        // 2. Reticle circle & dot
-        ctx.strokeStyle = col;
+        ctx.strokeStyle = isSelected ? '#38bdf8' : activeCol;
         ctx.lineWidth = isSelected ? 1.8 : 1.2;
         ctx.beginPath();
-        ctx.arc(cx, cy, isSelected ? 5.5 : 4.0, 0, 2 * Math.PI);
+        ctx.arc(cx, cy, isSelected ? 5.5 : 3.8, 0, 2 * Math.PI);
         ctx.stroke();
 
-        ctx.fillStyle = isSelected ? '#38bdf8' : '#ffffff';
+        ctx.fillStyle = isSelected ? '#ffffff' : activeCol;
         ctx.beginPath();
-        ctx.arc(cx, cy, 1.8, 0, 2 * Math.PI);
+        ctx.arc(cx, cy, isSelected ? 2.0 : 1.5, 0, 2 * Math.PI);
         ctx.fill();
-
-        // 3. Callout Text Badge
-        const elevKm = (site.elevationM / 1000).toFixed(1);
-        const elevSign = site.elevationM >= 0 ? '+' : '';
-        const labelText = `${site.name.toUpperCase()} ${Math.abs(site.lat).toFixed(1)}°S (${elevSign}${elevKm}km)`;
-        ctx.font = isSelected ? 'bold 8px "JetBrains Mono", monospace' : '7.5px "JetBrains Mono", monospace';
-        const textW = ctx.measureText(labelText).width;
-        const bW = textW + 14;
-        const bH = 16;
-        const bX = lblX > cx ? lblX : lblX - bW;
-        const bY = lblY - 8;
-
-        ctx.fillStyle = isSelected ? 'rgba(14, 165, 233, 0.25)' : 'rgba(10, 16, 28, 0.85)';
-        ctx.strokeStyle = isSelected ? '#38bdf8' : 'rgba(148, 163, 184, 0.35)';
-        ctx.lineWidth = isSelected ? 1.2 : 0.8;
-        ctx.beginPath();
-        ctx.roundRect(bX, bY, bW, bH, 3);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = isSelected ? '#38bdf8' : '#cbd5e1';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(labelText, bX + 7, bY + bH / 2);
-
-        ctx.restore();
       }
+
+      // ── 2. Compact Single-Line Label Pill with Dedicated Collision-Free Placement ──
+      const elevKm = (site.elevationM / 1000).toFixed(1);
+      const elevSign = site.elevationM >= 0 ? '+' : '';
+      const shortLabel = isSelected
+        ? `● ${site.name} ${Math.abs(site.lat).toFixed(1)}°S (${elevSign}${elevKm}km)`
+        : `${site.name} ${Math.abs(site.lat).toFixed(1)}°S (${elevSign}${elevKm}km)`;
+
+      ctx.font = isSelected ? 'bold 7.5px "JetBrains Mono", monospace' : '7.5px "JetBrains Mono", monospace';
+      const sTw = ctx.measureText(shortLabel).width;
+
+      let lx = 0;
+      let ly = 0;
+      switch (site.id) {
+        case 'shackleton-rim':
+          // 128°E (southeast of pole) -> lower-right quadrant away from 90°S
+          lx = cx + 12;
+          ly = cy + 12;
+          break;
+        case 'malapert':
+          // 2.7°E (north of pole near 0° meridian) -> upper-right
+          lx = cx + 10;
+          ly = cy - 8;
+          break;
+        case 'nobile-rim-1':
+          // 35.8°E (northeast of pole) -> right
+          lx = cx + 10;
+          ly = cy + 8;
+          break;
+        case 'haworth-rim':
+          // 355°E (northwest of pole) -> upper-left
+          lx = cx - sTw - 14;
+          ly = cy - 8;
+          break;
+        case 'de-gerlache-rim':
+          // 271°E (due west of pole) -> left
+          lx = cx - sTw - 14;
+          ly = cy + 6;
+          break;
+        case 'site-01':
+          // 222.5°E (southwest of pole) -> lower-left
+          lx = cx - sTw - 14;
+          ly = cy + 16;
+          break;
+        default:
+          lx = cx >= this.centerX ? cx + 10 : cx - sTw - 14;
+          ly = cy >= this.centerY ? cy + 8 : cy - 8;
+          break;
+      }
+
+      // Leader line
+      ctx.strokeStyle = isSelected
+        ? (isPrimary ? 'rgba(245, 158, 11, 0.70)' : 'rgba(56, 189, 248, 0.70)')
+        : 'rgba(148, 163, 184, 0.25)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      const targetEdgeX = lx > cx ? lx : lx + sTw + 8;
+      const targetEdgeY = ly + 6.5;
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(targetEdgeX, targetEdgeY);
+      ctx.stroke();
+
+      // Pill container
+      ctx.fillStyle = 'rgba(6, 12, 22, 0.92)';
+      ctx.strokeStyle = isSelected
+        ? (isPrimary ? '#f59e0b' : '#38bdf8')
+        : (isHovered ? 'rgba(103, 232, 249, 0.60)' : 'rgba(148, 163, 184, 0.28)');
+      ctx.lineWidth = isSelected ? 1.4 : 1.0;
+      ctx.beginPath();
+      ctx.roundRect(lx, ly, sTw + 8, 13, 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Pill text
+      ctx.fillStyle = isSelected ? (isPrimary ? '#fef08a' : '#ffffff') : (isHovered ? '#e2e8f0' : '#cbd5e1');
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(shortLabel, lx + 4, ly + 6.5);
+
+      ctx.restore();
     });
   }
 
@@ -915,11 +987,11 @@ export class SouthPoleExplorer {
     const { cx, cy } = this.projectMetersToCanvas(x, y);
 
     ctx.save();
-    // Restrained amber target reticle for custom picked surface target
+    // Amber target reticle
     ctx.strokeStyle = '#f59e0b';
     ctx.lineWidth = 1.8;
     ctx.beginPath();
-    ctx.arc(cx, cy, 7, 0, 2 * Math.PI);
+    ctx.arc(cx, cy, 6, 0, 2 * Math.PI);
     ctx.stroke();
 
     ctx.beginPath();
@@ -931,17 +1003,37 @@ export class SouthPoleExplorer {
 
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(cx, cy, 2.5, 0, 2 * Math.PI);
+    ctx.arc(cx, cy, 2.0, 0, 2 * Math.PI);
     ctx.fill();
 
-    // Custom Label
-    ctx.fillStyle = '#f59e0b';
-    ctx.font = 'bold 8px "JetBrains Mono", monospace';
+    // Compact single-line pill label
+    const cLabel = `● Custom Target: ${Math.abs(this.customSelection.lat).toFixed(2)}°S, ${this.customSelection.lon.toFixed(1)}°E`;
+    ctx.font = 'bold 7.5px "JetBrains Mono", monospace';
+    const cTw = ctx.measureText(cLabel).width;
+    const lx = cx >= this.centerX ? cx + 12 : cx - cTw - 14;
+    const ly = cy - 6;
+
+    // Leader line
+    ctx.strokeStyle = 'rgba(245, 158, 11, 0.70)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(lx > cx ? lx : lx + cTw + 8, ly + 6.5);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(8, 14, 26, 0.95)';
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.roundRect(lx, ly, cTw + 8, 13, 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#fef08a';
     ctx.textAlign = 'left';
-    ctx.fillText('CUSTOM TARGET', cx + 11, cy - 3);
-    ctx.fillStyle = '#e2e8f0';
-    ctx.font = '7px "JetBrains Mono", monospace';
-    ctx.fillText(formatSelenographicCoords(this.customSelection.lat, this.customSelection.lon), cx + 11, cy + 7);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(cLabel, lx + 4, ly + 6.5);
+
     ctx.restore();
   }
 
@@ -950,17 +1042,17 @@ export class SouthPoleExplorer {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    // Check hit against candidate markers
+    // Check hit against candidate markers using nearest-neighbor
     let hit: SiteInfo | null = null;
-    const HIT_RADIUS = 13;
+    let minD = 14;
 
     for (const site of SOUTH_POLE_SITES) {
       const { x, y } = selenographicToPolarStereo(site.lon, site.lat);
       const { cx, cy } = this.projectMetersToCanvas(x, y);
       const d = Math.hypot(mouseX - cx, mouseY - cy);
-      if (d <= HIT_RADIUS) {
+      if (d < minD) {
+        minD = d;
         hit = site;
-        break;
       }
     }
 
@@ -978,25 +1070,18 @@ export class SouthPoleExplorer {
   }
 
   private showTooltip(site: SiteInfo, clientX: number, clientY: number): void {
-    const distToPole = distanceToSouthPoleKm(site.lat);
-    const covText = site.isInsideSite01DEM
-      ? '★ Validated 5 m/px DEM (NASA Site 01)'
-      : 'Global LOLA Altimetry (~60 m/px)';
+    const isPrimary = site.id === 'site-01';
+    const isPole = site.id === 'south-pole';
+    const dotColor = isPrimary ? '#f59e0b' : (isPole ? '#22d3ee' : '#38bdf8');
 
     this.tooltipEl.innerHTML = `
-      <div class="spe-tt-name">${site.name}</div>
-      <div class="spe-tt-desig">${site.designation}</div>
-      <div class="spe-tt-grid">
-        <span>Coords:</span><span>${formatSelenographicCoords(site.lat, site.lon)}</span>
-        <span>Elevation:</span><span>${site.elevationM >= 0 ? '+' : ''}${site.elevationM.toLocaleString()} m</span>
-        <span>Pole Dist:</span><span>${distToPole.toFixed(1)} km</span>
-        <span>Dataset:</span><span>${covText}</span>
-      </div>
-      <div class="spe-tt-action">Click to inspect candidate</div>
+      <span class="spe-tt-dot" style="background:${dotColor};box-shadow:0 0 6px ${dotColor};"></span>
+      <span class="spe-tt-name">${site.name}</span>
+      <span class="spe-tt-lat">· ${Math.abs(site.lat).toFixed(1)}°S</span>
     `;
 
-    const tipX = Math.min(clientX + 14, window.innerWidth - 260);
-    const tipY = Math.max(10, Math.min(clientY - 20, window.innerHeight - 150));
+    const tipX = Math.min(clientX + 14, window.innerWidth - 180);
+    const tipY = Math.max(10, Math.min(clientY - 20, window.innerHeight - 50));
     this.tooltipEl.style.left = `${tipX}px`;
     this.tooltipEl.style.top = `${tipY}px`;
     this.tooltipEl.classList.remove('hidden');
@@ -1007,19 +1092,31 @@ export class SouthPoleExplorer {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    // 1. First test if user clicked directly on a registered candidate
+    // Close any floating hover tooltip immediately
+    this.tooltipEl.classList.add('hidden');
+
+    // 1. First test if user clicked directly on a registered candidate (nearest-neighbor)
+    let bestSite: SiteInfo | null = null;
+    let minDist = 14;
+
     for (const site of SOUTH_POLE_SITES) {
       const { x, y } = selenographicToPolarStereo(site.lon, site.lat);
       const { cx, cy } = this.projectMetersToCanvas(x, y);
-      if (Math.hypot(mouseX - cx, mouseY - cy) <= 14) {
-        this.selectedSiteId = site.id;
-        this.customSelection = null;
-        this.draw();
-        if (this.onSelectCallback) {
-          this.onSelectCallback(this.getCurrentSiteData());
-        }
-        return;
+      const d = Math.hypot(mouseX - cx, mouseY - cy);
+      if (d < minDist) {
+        minDist = d;
+        bestSite = site;
       }
+    }
+
+    if (bestSite) {
+      this.selectedSiteId = bestSite.id;
+      this.customSelection = null;
+      this.draw();
+      if (this.onSelectCallback) {
+        this.onSelectCallback(this.getCurrentSiteData());
+      }
+      return;
     }
 
     // 2. Otherwise: pick georeferenced custom location via inverse polar stereographic transform

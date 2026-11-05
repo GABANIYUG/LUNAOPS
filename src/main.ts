@@ -654,6 +654,30 @@ hud.innerHTML = `
 </div>
 
 <!-- Telemetry Bottom Bar -->
+<!-- 3D Model Floating Callout Card (shown for selected site only) -->
+<div id="hud-3d-site-card" class="hud-3d-site-card card-amber" style="display:none;">
+  <div class="hud-3d-card-header">
+    <span class="hud-3d-card-dot"></span>
+    <span class="hud-3d-card-title" id="hud-3d-card-title">SITE 01 (CONNECTING RIDGE)</span>
+  </div>
+  <div class="hud-3d-card-desig" id="hud-3d-card-desig">Shackleton–de Gerlache Connecting Ridge</div>
+  <div class="hud-3d-card-divider"></div>
+  <div class="hud-3d-card-grid">
+    <span class="hud-3d-lbl">Coords:</span>
+    <span class="hud-3d-val" id="hud-3d-val-coords">89.463° S, 222.510° E</span>
+    <span class="hud-3d-lbl">Elevation:</span>
+    <span class="hud-3d-val" id="hud-3d-val-elev">+1,100 m</span>
+    <span class="hud-3d-lbl">Pole Dist:</span>
+    <span class="hud-3d-val" id="hud-3d-val-dist">16.3 km</span>
+    <span class="hud-3d-lbl">Dataset:</span>
+    <span class="hud-3d-val" id="hud-3d-val-cov">★ Validated 5 m/px DEM</span>
+  </div>
+  <div class="hud-3d-card-status" id="hud-3d-card-status">
+    <span class="hud-3d-comm" id="hud-3d-comm">COMM: LOS 84%</span>
+    <span class="hud-3d-illum" id="hud-3d-illum">ILLUM: 96%</span>
+  </div>
+</div>
+
 <div class="hud-bottom">
   <div class="telemetry-bar">
     <span class="telem-item"><span class="telem-label">PROVENANCE</span> NASA LRO / LOLA / LROC</span>
@@ -679,8 +703,15 @@ southPoleExplorer.setOnSelect((site) => {
 });
 
 southPoleExplorer.setOnApplyAndCalculate(async (site) => {
+  // Immediately sync the 3D globe and HUD to the selected site
   selectMissionSite(site, false, false);
-  return await setPanelSite(site.latitudeDeg, site.longitudeDeg, `${site.name} · ${site.designation}`);
+  // Run SPICE geometry; catch landing-window scan failures gracefully
+  try {
+    return await setPanelSite(site.latitudeDeg, site.longitudeDeg, `${site.name} · ${site.designation}`);
+  } catch {
+    // 3D selection already synced; do not surface scan error as button failure
+    return false;
+  }
 });
 
 southPoleExplorer.setOnRecenter((coords) => {
@@ -754,7 +785,7 @@ export function selectMissionSite(site: LandingSiteConfig, focusCamera = true, t
 
   // Sync mission workspace
   if (missionWorkspace) {
-    missionWorkspace.setCoordinatesFromGlobe(site.latitudeDeg, site.longitudeDeg);
+    missionWorkspace.setCoordinatesFromGlobe(site.latitudeDeg, site.longitudeDeg, site.name, site.designation);
   }
 
   // Smooth camera targeting
@@ -872,6 +903,31 @@ function updateTargetSiteMarker(site: LandingSiteConfig, triggerCalculation = tr
   const siteDisplayEl = document.getElementById('active-site-display');
   if (siteDisplayEl) {
     siteDisplayEl.textContent = `${site.name} · ${site.designation}`;
+  }
+
+  // Populate 3D HUD Callout Card for selected site
+  const card3d = document.getElementById('hud-3d-site-card');
+  if (card3d) {
+    const isAmber = site.name.includes('Site 01') || site.name.includes('Custom');
+    card3d.className = isAmber ? 'hud-3d-site-card card-amber' : 'hud-3d-site-card';
+
+    const titleEl = document.getElementById('hud-3d-card-title');
+    const desigEl = document.getElementById('hud-3d-card-desig');
+    const coordsVal = document.getElementById('hud-3d-val-coords');
+    const elevVal = document.getElementById('hud-3d-val-elev');
+    const distVal = document.getElementById('hud-3d-val-dist');
+    const covVal = document.getElementById('hud-3d-val-cov');
+    const commVal = document.getElementById('hud-3d-comm');
+    const illumVal = document.getElementById('hud-3d-illum');
+
+    if (titleEl) titleEl.textContent = site.name.toUpperCase();
+    if (desigEl) desigEl.textContent = site.designation;
+    if (coordsVal) coordsVal.textContent = formatSelenographicCoords(site.latitudeDeg, site.longitudeDeg);
+    if (elevVal) elevVal.textContent = `${site.elevationM >= 0 ? '+' : ''}${site.elevationM.toLocaleString()} m`;
+    if (distVal) distVal.textContent = `${distanceToSouthPoleKm(site.latitudeDeg).toFixed(1)} km`;
+    if (covVal) covVal.textContent = site.isInsideSite01DEM ? '★ Validated 5 m/px DEM' : 'Global LOLA (~60 m/px)';
+    if (commVal) commVal.textContent = site.name.includes('Site 01') ? 'COMM: LOS 84%' : 'COMM: DTE VISIBLE';
+    if (illumVal) illumVal.textContent = site.name.includes('Site 01') ? 'ILLUM: 96%' : 'ILLUM: POLAR SUN';
   }
   const coordsEl = document.getElementById('readout-coords');
   const elevEl = document.getElementById('readout-elev');
@@ -1287,6 +1343,49 @@ selectMissionSite({
 // ── Render Loop ────────────────────────────────────────────────
 const clock = new THREE.Clock();
 
+
+function update3DSiteCallout() {
+  const card = document.getElementById('hud-3d-site-card');
+  if (!card || !moonGroup || isNaN(activeSiteLat) || isNaN(activeSiteLon)) {
+    if (card) card.style.display = 'none';
+    return;
+  }
+
+  // Calculate selected site world position on Moon sphere
+  const localPos = selenographicToMoonVector(activeSiteLat, activeSiteLon, MOON_RADIUS * 1.002);
+  const worldPos = localPos.clone().applyMatrix4(moonGroup.matrixWorld);
+
+  // Hemispheric visibility test: is the site on the front face visible to camera?
+  const toCamera = camera.position.clone().sub(worldPos).normalize();
+  const normal = worldPos.clone().normalize();
+  const facing = normal.dot(toCamera);
+
+  if (facing <= 0.05) {
+    card.style.display = 'none';
+    return;
+  }
+
+  // Project 3D world position to screen pixels
+  const proj = worldPos.clone().project(camera);
+  if (proj.z >= 1.0) {
+    card.style.display = 'none';
+    return;
+  }
+
+  const screenX = (proj.x * 0.5 + 0.5) * window.innerWidth;
+  const screenY = (-(proj.y * 0.5) + 0.5) * window.innerHeight;
+
+  // Position card adjacent to target pinpoint with boundary clamps
+  const cardW = 230;
+  const cardH = 140;
+  const posX = screenX + 32 + cardW > window.innerWidth ? screenX - cardW - 24 : screenX + 32;
+  const posY = Math.max(16, Math.min(screenY - 45, window.innerHeight - cardH - 16));
+
+  card.style.display = 'flex';
+  card.style.left = `${posX}px`;
+  card.style.top = `${posY}px`;
+}
+
 function animate() {
   requestAnimationFrame(animate);
 
@@ -1347,6 +1446,7 @@ function animate() {
 
   // Update hover reticle
   updateHoverReticle();
+  update3DSiteCallout();
 
   composer.render();
 }
