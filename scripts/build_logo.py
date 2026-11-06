@@ -185,3 +185,4 @@ with open('public/lunaops-logo.svg', 'w', encoding='utf-8') as f:
 with open('dist/lunaops-logo.svg', 'w', encoding='utf-8') as f:
     f.write(logo_svg)
 print("Successfully validated and wrote public/lunaops-logo.svg and dist/lunaops-logo.svg")
+
