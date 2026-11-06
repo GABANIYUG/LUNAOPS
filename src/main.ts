@@ -224,8 +224,12 @@ const loadingOverlay = document.createElement('div');
 loadingOverlay.id = 'loading-overlay';
 loadingOverlay.innerHTML = `
   <div class="loader-content">
+    <div class="loader-emblem-wrap">
+      <img src="/lunaops-emblem.svg" class="loader-emblem" alt="LUNAOPS Emblem" />
+    </div>
     <div class="spinner"></div>
-    <p class="loader-text">LUNAOPS</p>
+    <p class="loader-text">LUNA<span class="loader-accent">OPS</span></p>
+    <p class="loader-motto">EXPLORE THE LUNAR FRONTIER &middot; PLAN WITH PRECISION</p>
     <p class="loader-sub" id="load-status">Initializing lunar geodetic models &amp; SPICE kernels…</p>
     <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
   </div>
@@ -558,11 +562,22 @@ hud.innerHTML = `
   <!-- Brand Header -->
   <div class="brand">
     <div class="brand-header-row">
-      <span class="brand-dot"></span>
-      <h1 class="title">LUNAOPS</h1>
-      <span class="geodetic-badge">IAU MOON_ME</span>
+      <a href="/" class="brand-logo-link" title="LUNAOPS &middot; Explore the lunar frontier &middot; Plan with precision">
+        <img src="/lunaops-emblem.svg" class="brand-logo-emblem" alt="LUNAOPS Logo" />
+      </a>
+      <div class="brand-text-block">
+        <div class="brand-title-line">
+          <h1 class="title">LUNA<span class="title-accent">OPS</span></h1>
+          <span class="geodetic-badge">IAU MOON_ME</span>
+        </div>
+        <div class="brand-motto-row">
+          <span class="motto-text">EXPLORE THE LUNAR FRONTIER</span>
+          <span class="motto-sep">&middot;</span>
+          <span class="motto-accent">PLAN WITH PRECISION</span>
+        </div>
+      </div>
     </div>
-    <p class="subtitle">NASA Space Apps 2026 · SELENE LABS · LUNAR SOUTH POLE MISSION PLANNER</p>
+    <p class="subtitle">NASA Space Apps 2026 &middot; SELENE LABS &middot; LUNAR SOUTH POLE MISSION PLANNER</p>
     
     <!-- Active Target Readout Card -->
     <div class="data-readout" id="data-readout">

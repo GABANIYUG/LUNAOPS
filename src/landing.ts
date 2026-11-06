@@ -1456,6 +1456,7 @@ overlay.innerHTML = `
   <!-- Left panel (floating hero text without card container) -->
   <div class="left-panel" id="left-panel">
     <div class="panel-badge" id="panel-badge">
+      <img src="/lunaops-emblem.svg" class="hero-emblem-badge" alt="LUNAOPS Emblem" />
       <span class="panel-badge-dot"></span>
       <span class="panel-badge-text" id="panel-phase-badge">SELENE LABS &middot; NASA SPACE APPS 2026 &middot; LOW EARTH ORBIT</span>
     </div>
@@ -1629,11 +1630,17 @@ overlay.innerHTML = `
   <!-- Touchdown Dock (Center-Bottom Glass Bar) -->
   <div class="touchdown-dock" id="touchdown-dock" aria-live="polite">
     <div class="status-line" id="status-line">
-      <svg class="status-check" viewBox="0 0 16 16" fill="none">
-        <polyline points="3,9 7,13 13,4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span class="status-text">TOUCHDOWN COMPLETE &middot; SOUTH POLE</span>
-      <span class="status-sub">Shackleton Crater Rim &middot; 89&deg;54&prime;S &middot; NASA Space Apps 2026</span>
+      <img src="/lunaops-emblem.svg" class="touchdown-emblem" alt="LUNAOPS" />
+      <div class="status-content">
+        <div class="status-header">
+          <svg class="status-check" viewBox="0 0 16 16" fill="none">
+            <polyline points="3,9 7,13 13,4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="status-text">TOUCHDOWN COMPLETE &middot; SOUTH POLE</span>
+          <span class="status-motto-tag">PLAN WITH PRECISION</span>
+        </div>
+        <span class="status-sub">Shackleton Crater Rim &middot; 89&deg;54&prime;S &middot; NASA Space Apps 2026</span>
+      </div>
     </div>
     <div class="panel-cta" id="panel-cta">
       <a href="/workstation.html" class="btn-enter" id="btn-enter-workstation"

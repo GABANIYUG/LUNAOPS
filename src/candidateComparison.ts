@@ -202,9 +202,15 @@ export class CandidateComparisonWorkspace {
     this.container.innerHTML = `
     <div class="mission-dialog comparison-dialog">
       <div class="mission-header">
-        <div class="mission-title-group">
-          <div class="mission-kicker">NASA SPACE APPS 2026 · PHASE 5 SCIENTIFIC COMPARISON</div>
-          <h2 class="mission-title">Landing Site &amp; Mission Date Comparison</h2>
+        <div class="mission-brand-lockup">
+          <img src="/lunaops-emblem.svg" class="mission-header-emblem" alt="LUNAOPS" />
+          <div class="mission-title-group">
+            <div class="mission-kicker">
+              <span>NASA SPACE APPS 2026 &middot; PHASE 5 SCIENTIFIC COMPARISON</span>
+              <span class="mission-motto-tag">PLAN WITH PRECISION</span>
+            </div>
+            <h2 class="mission-title">Landing Site &amp; Mission Date Comparison</h2>
+          </div>
         </div>
         <div class="mission-header-actions">
           <span class="readiness-pill ready">${this.scenarios.length} SCENARIOS CONFIGURED</span>

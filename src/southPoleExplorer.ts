@@ -176,9 +176,10 @@ export class SouthPoleExplorer {
     return `
 <div class="spe-header">
   <div class="spe-title-row">
-    <span class="spe-dot"></span>
+    <img src="/lunaops-emblem.svg" class="spe-header-emblem" alt="LUNAOPS Polar Emblem" />
     <span class="spe-title">SOUTH POLE EXPLORER</span>
-    <span class="spe-badge">USGS POLAR STEREO · 80°S–90°S</span>
+    <span class="spe-badge">USGS POLAR STEREO &middot; 80&deg;S&ndash;90&deg;S</span>
+    <span class="spe-motto-pill">PLAN WITH PRECISION</span>
   </div>
   <button type="button" class="spe-close-btn" id="spe-close-btn" title="Close South Pole Explorer [Esc]">&times;</button>
 </div>

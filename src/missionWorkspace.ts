@@ -436,9 +436,15 @@ export class MissionWorkspace {
     this.container.innerHTML = `
     <div class="mission-dialog">
       <div class="mission-header">
-        <div class="mission-title-group">
-          <div class="mission-kicker">NASA SPACE APPS 2026 · CLPS MISSION PLANNER</div>
-          <h2 class="mission-title">New Mission Analysis Workspace</h2>
+        <div class="mission-brand-lockup">
+          <img src="/lunaops-emblem.svg" class="mission-header-emblem" alt="LUNAOPS" />
+          <div class="mission-title-group">
+            <div class="mission-kicker">
+              <span>NASA SPACE APPS 2026 &middot; CLPS MISSION PLANNER</span>
+              <span class="mission-motto-tag">PLAN WITH PRECISION</span>
+            </div>
+            <h2 class="mission-title">New Mission Analysis Workspace</h2>
+          </div>
         </div>
         <div class="mission-header-actions">
           <span class="readiness-pill ${readiness.state.toLowerCase()}">${readiness.state.replace(/_/g, ' ')}</span>
@@ -1306,7 +1312,13 @@ export class MissionWorkspace {
     <div class="tab-pane">
       <div class="panel-card">
         <div class="card-header">
-          <h3>📤 Scientific Report Export &amp; Reproducibility</h3>
+          <div class="export-header-brand">
+            <img src="/lunaops-emblem.svg" class="export-tab-emblem" alt="LUNAOPS" />
+            <div>
+              <h3>Scientific Report Export &amp; Reproducibility</h3>
+              <span class="export-motto-badge">EXPLORE THE LUNAR FRONTIER &middot; PLAN WITH PRECISION</span>
+            </div>
+          </div>
           <span class="coverage-pill ${hasTimeline ? 'coverage-inside' : 'coverage-pending'}">
             ${hasTimeline ? 'TIMELINE COMPUTED' : 'TIMELINE PENDING'}
           </span>

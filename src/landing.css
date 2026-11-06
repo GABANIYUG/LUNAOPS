@@ -1067,3 +1067,51 @@ html, body {
     right: 2vw;
   }
 }
+
+
+/* ==========================================================================
+   LUNAOPS Landing Page Brand Emblem & Motto Enhancements
+   ========================================================================== */
+
+.hero-emblem-badge {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 0.45rem;
+  filter: drop-shadow(0 0 6px rgba(66, 221, 245, 0.5));
+}
+
+.touchdown-emblem {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(66, 221, 245, 0.4);
+  box-shadow: 0 0 12px rgba(66, 221, 245, 0.4);
+  flex-shrink: 0;
+}
+
+.status-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.status-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-motto-tag {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 3px;
+  background: rgba(66, 221, 245, 0.15);
+  border: 1px solid rgba(66, 221, 245, 0.4);
+  color: var(--cyan-bright);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 8px rgba(66, 221, 245, 0.5);
+}

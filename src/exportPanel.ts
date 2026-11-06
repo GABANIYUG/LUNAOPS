@@ -139,17 +139,18 @@ export class ExportPanel {
       : `${this.comparisonContext?.scenarios.length ?? 0} Candidate Scenarios · NASA SPICE & LOLA DEM`;
 
     this.container.innerHTML = `
-<<<<<<< HEAD
     <div class="mission-dialog export-dialog">
       <!-- Header -->
-=======
-    <div class="mission-modal-dialog export-dialog">
-      <!-- Clean Header -->
->>>>>>> 6ddfedd5ead43ab4c4d90aca925f4148d9125713
       <div class="mission-modal-header export-dialog-header">
-        <div class="mission-header-info">
-          <h2>📤 ${title}</h2>
-          <p class="export-subtitle">${subtitle}</p>
+        <div class="export-dialog-brand-row">
+          <img src="/lunaops-emblem.svg" class="export-dialog-emblem" alt="LUNAOPS" />
+          <div class="mission-header-info">
+            <div class="export-title-line">
+              <h2>${title}</h2>
+              <span class="export-dialog-motto">PLAN WITH PRECISION</span>
+            </div>
+            <p class="export-subtitle">${subtitle}</p>
+          </div>
         </div>
         <div class="mission-header-controls">
           <button id="btn-close-export" class="modal-close-btn" title="Close">✕</button>
@@ -245,7 +246,6 @@ export class ExportPanel {
     // Close button & Cancel button
     this.container.querySelector('#btn-close-export')?.addEventListener('click', () => this.close());
     this.container.querySelector('#btn-cancel-export')?.addEventListener('click', () => this.close());
-<<<<<<< HEAD
 
     // Click outside dialog (on modal container backdrop) to close
     this.container.onclick = (e) => {
@@ -253,11 +253,6 @@ export class ExportPanel {
         this.close();
       }
     };
-=======
-    this.container.addEventListener('click', (e) => {
-      if (e.target === this.container && !this.isGenerating) this.close();
-    });
->>>>>>> 6ddfedd5ead43ab4c4d90aca925f4148d9125713
 
     // Format selection cards
     const cards = this.container.querySelectorAll('.export-format-card');
