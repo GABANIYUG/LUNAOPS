@@ -59,3 +59,4 @@ def clean_file(path):
 
 clean_file('src/exportPanel.ts')
 clean_file('src/style.css')
+

@@ -81,8 +81,9 @@
           font-size="7.5"
           letter-spacing="0.14em">
       <tspan fill="#94A3B8" font-weight="500">EXPLORE FRONTIER</tspan>
-      <tspan fill="#38BDF8" font-weight="700"> &middot; </tspan>
+      <tspan fill="#38BDF8" font-weight="700"> &#183; </tspan>
       <tspan fill="#42DDF5" font-weight="700">PLAN WITH PRECISION</tspan>
     </text>
   </g>
 </svg>
+

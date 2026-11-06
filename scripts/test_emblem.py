@@ -1,0 +1,154 @@
+import xml.etree.ElementTree as ET
+
+svg_content = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="emb-cyan-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#42DDF5" />
+      <stop offset="50%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#1D4ED8" />
+    </linearGradient>
+
+    <linearGradient id="emb-amber-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF3B0" />
+      <stop offset="35%" stop-color="#FBBF24" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+
+    <linearGradient id="emb-limb-grad" x1="0%" y1="0%" x2="100%" y2="80%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95" />
+      <stop offset="45%" stop-color="#BAE6FD" stop-opacity="0.8" />
+      <stop offset="80%" stop-color="#38BDF8" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#0284C7" stop-opacity="0.05" />
+    </linearGradient>
+
+    <linearGradient id="emb-traj-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#42DDF5" stop-opacity="0.15" />
+      <stop offset="60%" stop-color="#42DDF5" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#FBBF24" stop-opacity="1" />
+    </linearGradient>
+
+    <radialGradient id="emb-space-bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#05152E" />
+      <stop offset="65%" stop-color="#020914" />
+      <stop offset="100%" stop-color="#010408" />
+    </radialGradient>
+
+    <radialGradient id="emb-beacon-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FBBF24" stop-opacity="0.65" />
+      <stop offset="40%" stop-color="#F59E0B" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Filters -->
+    <filter id="emb-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2.5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <filter id="emb-star-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Text Paths for Motto Ring -->
+    <!-- Upper arc: left to right over top -->
+    <path id="textpath-top" d="M 18 100 A 82 82 0 0 1 182 100" fill="none" />
+    <!-- Lower arc: right to left under bottom (so text is right-side up) -->
+    <path id="textpath-bottom" d="M 182 100 A 82 82 0 0 1 18 100" fill="none" />
+  </defs>
+
+  <!-- Deep Obsidian Base Disc -->
+  <circle cx="100" cy="100" r="97" fill="url(#emb-space-bg)" stroke="#42DDF5" stroke-width="1.2" stroke-opacity="0.5" />
+
+  <!-- Outer Motto Ring Track -->
+  <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(66, 221, 245, 0.2)" stroke-width="1" stroke-dasharray="2 3" />
+  <circle cx="100" cy="100" r="72" fill="none" stroke="rgba(66, 221, 245, 0.3)" stroke-width="1" />
+
+  <!-- ==================== MOTTO RING TEXT ==================== -->
+  <!-- Top Motto: EXPLORE THE LUNAR FRONTIER -->
+  <text fill="#BAE6FD" font-family="'JetBrains Mono', 'SF Mono', monospace" font-size="7.5" font-weight="700" letter-spacing="0.22em">
+    <textPath href="#textpath-top" startOffset="50%" text-anchor="middle">
+      EXPLORE THE LUNAR FRONTIER
+    </textPath>
+  </text>
+
+  <!-- Bottom Motto: PLAN WITH PRECISION -->
+  <text fill="#42DDF5" font-family="'JetBrains Mono', 'SF Mono', monospace" font-size="7.8" font-weight="800" letter-spacing="0.22em">
+    <textPath href="#textpath-bottom" startOffset="50%" text-anchor="middle">
+      &#x2726; PLAN WITH PRECISION &#x2726;
+    </textPath>
+  </text>
+
+  <!-- Delimiter Ticks between Upper and Lower Text -->
+  <circle cx="18" cy="100" r="2" fill="#FBBF24" />
+  <circle cx="182" cy="100" r="2" fill="#FBBF24" />
+
+  <!-- ==================== INNER SCIENTIFIC GEODETIC GRID ==================== -->
+  <!-- Concentric Polar Coordinate Rings (80°S, 85°S, 89°S) -->
+  <circle cx="100" cy="100" r="62" fill="none" stroke="rgba(120, 174, 255, 0.22)" stroke-width="0.75" stroke-dasharray="3 3" />
+  <circle cx="100" cy="100" r="46" fill="none" stroke="rgba(66, 221, 245, 0.2)" stroke-width="0.75" />
+  <circle cx="100" cy="100" r="28" fill="none" stroke="rgba(66, 221, 245, 0.3)" stroke-width="1" stroke-dasharray="6 4" />
+
+  <!-- Cardinal Navigational Ticks -->
+  <line x1="100" y1="28" x2="100" y2="36" stroke="#42DDF5" stroke-width="2" stroke-linecap="round" />
+  <line x1="100" y1="164" x2="100" y2="172" stroke="#FBBF24" stroke-width="2.5" stroke-linecap="round" />
+  <line x1="28" y1="100" x2="36" y2="100" stroke="#42DDF5" stroke-width="2" stroke-linecap="round" />
+  <line x1="164" y1="100" x2="172" y2="100" stroke="#42DDF5" stroke-width="2" stroke-linecap="round" />
+
+  <!-- Sub-ticks at 45-deg angles -->
+  <line x1="149" y1="51" x2="144" y2="56" stroke="rgba(66, 221, 245, 0.4)" stroke-width="1.2" />
+  <line x1="149" y1="149" x2="144" y2="144" stroke="rgba(66, 221, 245, 0.4)" stroke-width="1.2" />
+  <line x1="51" y1="149" x2="56" y2="144" stroke="rgba(66, 221, 245, 0.4)" stroke-width="1.2" />
+  <line x1="51" y1="51" x2="56" y2="56" stroke="rgba(66, 221, 245, 0.4)" stroke-width="1.2" />
+
+  <!-- ==================== LUNAR SOUTH POLE LIMB & TOPOGRAPHY ==================== -->
+  <!-- Sweeping illuminated crescent limb of the Moon -->
+  <path d="M 100 38 A 62 62 0 0 1 162 100 A 62 62 0 0 1 100 162 C 128 144 142 120 142 100 C 142 80 128 56 100 38 Z"
+        fill="url(#emb-limb-grad)" filter="url(#emb-glow)" />
+
+  <!-- Topographic crater rim contour arcs (Shackleton / Malapert hints) -->
+  <path d="M 78 112 C 84 106 96 105 104 110 C 112 116 110 126 102 128 C 94 130 80 122 78 112 Z"
+        fill="none" stroke="rgba(66, 221, 245, 0.4)" stroke-width="1" stroke-dasharray="2 3" />
+  <path d="M 112 80 C 118 76 128 78 132 85 C 136 92 131 99 124 99 C 117 99 110 90 112 80 Z"
+        fill="none" stroke="rgba(66, 221, 245, 0.3)" stroke-width="0.8" />
+
+  <!-- Precision Crosshair Axes -->
+  <line x1="42" y1="100" x2="84" y2="100" stroke="#42DDF5" stroke-width="1.2" stroke-linecap="round" stroke-opacity="0.8" />
+  <line x1="116" y1="100" x2="158" y2="100" stroke="#42DDF5" stroke-width="1.2" stroke-linecap="round" stroke-opacity="0.8" />
+  <line x1="100" y1="42" x2="100" y2="84" stroke="#42DDF5" stroke-width="1.2" stroke-linecap="round" stroke-opacity="0.8" />
+  <line x1="100" y1="116" x2="100" y2="158" stroke="#42DDF5" stroke-width="1.2" stroke-linecap="round" stroke-opacity="0.8" />
+
+  <!-- Center Reticle Fine Ring -->
+  <circle cx="100" cy="100" r="14" fill="none" stroke="#42DDF5" stroke-width="1.5" />
+
+  <!-- Artemis Descent Trajectory Vector -->
+  <path d="M 44 56 Q 72 40, 92 68 T 100 100"
+        fill="none" stroke="url(#emb-traj-grad)" stroke-width="2.6" stroke-linecap="round" />
+
+  <!-- Lidar altimetry radar ping ripple -->
+  <circle cx="100" cy="100" r="32" fill="url(#emb-beacon-glow)" />
+  <circle cx="100" cy="100" r="11" fill="none" stroke="#FBBF24" stroke-width="0.8" stroke-opacity="0.6" stroke-dasharray="3 2" />
+
+  <!-- Pinpoint Landing Target Star: 4-Point Artemis Amber Diamond ("Peaks of Eternal Light") -->
+  <g filter="url(#emb-star-glow)">
+    <path d="M 100 86 L 103.8 96.2 L 114 100 L 103.8 103.8 L 100 114 L 96.2 103.8 L 86 100 L 96.2 96.2 Z"
+          fill="url(#emb-amber-grad)" />
+    <circle cx="100" cy="100" r="2.4" fill="#FFFFFF" />
+  </g>
+
+  <!-- Micro-pedigree label -->
+  <text x="100" y="156" font-family="'JetBrains Mono', 'SF Mono', monospace" font-size="6"
+        font-weight="700" fill="#42DDF5" text-anchor="middle" letter-spacing="0.12em">90°S &#183; POLAR</text>
+</svg>'''
+
+ET.fromstring(svg_content)
+print("SVG XML is valid!")
+with open('public/lunaops-emblem.svg', 'w', encoding='utf-8') as f:
+    f.write(svg_content)
+with open('dist/lunaops-emblem.svg', 'w', encoding='utf-8') as f:
+    f.write(svg_content)
+print("Successfully validated and wrote public/lunaops-emblem.svg and dist/lunaops-emblem.svg")

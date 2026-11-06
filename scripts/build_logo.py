@@ -1,0 +1,187 @@
+import xml.etree.ElementTree as ET
+
+# Master Horizontal Lockup: lunaops-logo.svg
+logo_svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 580 100" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="l-cyan-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#42DDF5" />
+      <stop offset="50%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#1D4ED8" />
+    </linearGradient>
+
+    <linearGradient id="l-amber-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF3B0" />
+      <stop offset="35%" stop-color="#FBBF24" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+
+    <linearGradient id="l-limb-grad" x1="0%" y1="0%" x2="100%" y2="80%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95" />
+      <stop offset="45%" stop-color="#BAE6FD" stop-opacity="0.8" />
+      <stop offset="80%" stop-color="#38BDF8" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#0284C7" stop-opacity="0.05" />
+    </linearGradient>
+
+    <linearGradient id="l-traj-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#42DDF5" stop-opacity="0.15" />
+      <stop offset="60%" stop-color="#42DDF5" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#FBBF24" stop-opacity="1" />
+    </linearGradient>
+
+    <linearGradient id="l-divider-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#42DDF5" stop-opacity="0.9" />
+      <stop offset="40%" stop-color="#38BDF8" stop-opacity="0.5" />
+      <stop offset="80%" stop-color="#78AEFF" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#78AEFF" stop-opacity="0" />
+    </linearGradient>
+
+    <radialGradient id="l-beacon-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FBBF24" stop-opacity="0.65" />
+      <stop offset="40%" stop-color="#F59E0B" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Filters -->
+    <filter id="l-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <filter id="l-star-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Text Paths for Motto Ring inside scaled emblem -->
+    <path id="l-textpath-top" d="M 18 100 A 82 82 0 0 1 182 100" fill="none" />
+    <path id="l-textpath-bottom" d="M 182 100 A 82 82 0 0 1 18 100" fill="none" />
+  </defs>
+
+  <!-- ==================== EMBLEM (Left: 88x88 box at x=6, y=6) ==================== -->
+  <g transform="translate(6, 6) scale(0.44)">
+    <!-- Base Disc -->
+    <circle cx="100" cy="100" r="97" fill="#030914" stroke="#42DDF5" stroke-width="1.5" stroke-opacity="0.6" />
+    <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(66, 221, 245, 0.25)" stroke-width="1" stroke-dasharray="3 3" />
+    <circle cx="100" cy="100" r="72" fill="none" stroke="rgba(66, 221, 245, 0.35)" stroke-width="1" />
+
+    <!-- Motto Ring on Emblem -->
+    <text fill="#BAE6FD" font-family="'JetBrains Mono', 'SF Mono', monospace" font-size="7.5" font-weight="700" letter-spacing="0.22em">
+      <textPath href="#l-textpath-top" startOffset="50%" text-anchor="middle">
+        EXPLORE THE LUNAR FRONTIER
+      </textPath>
+    </text>
+    <text fill="#42DDF5" font-family="'JetBrains Mono', 'SF Mono', monospace" font-size="8" font-weight="800" letter-spacing="0.22em">
+      <textPath href="#l-textpath-bottom" startOffset="50%" text-anchor="middle">
+        &#x2726; PLAN WITH PRECISION &#x2726;
+      </textPath>
+    </text>
+    <circle cx="18" cy="100" r="2.2" fill="#FBBF24" />
+    <circle cx="182" cy="100" r="2.2" fill="#FBBF24" />
+
+    <!-- Inner Geodetic Rings -->
+    <circle cx="100" cy="100" r="62" fill="none" stroke="rgba(120, 174, 255, 0.25)" stroke-width="0.8" stroke-dasharray="3 3" />
+    <circle cx="100" cy="100" r="46" fill="none" stroke="rgba(66, 221, 245, 0.25)" stroke-width="0.8" />
+    <circle cx="100" cy="100" r="28" fill="none" stroke="rgba(66, 221, 245, 0.35)" stroke-width="1.2" stroke-dasharray="6 4" />
+
+    <!-- Cardinal Ticks -->
+    <line x1="100" y1="28" x2="100" y2="36" stroke="#42DDF5" stroke-width="2.5" stroke-linecap="round" />
+    <line x1="100" y1="164" x2="100" y2="172" stroke="#FBBF24" stroke-width="3" stroke-linecap="round" />
+    <line x1="28" y1="100" x2="36" y2="100" stroke="#42DDF5" stroke-width="2.5" stroke-linecap="round" />
+    <line x1="164" y1="100" x2="172" y2="100" stroke="#42DDF5" stroke-width="2.5" stroke-linecap="round" />
+
+    <!-- Crescent Moon Limb -->
+    <path d="M 100 38 A 62 62 0 0 1 162 100 A 62 62 0 0 1 100 162 C 128 144 142 120 142 100 C 142 80 128 56 100 38 Z"
+          fill="url(#l-limb-grad)" filter="url(#l-glow)" />
+
+    <!-- Crosshair Axes -->
+    <line x1="42" y1="100" x2="84" y2="100" stroke="#42DDF5" stroke-width="1.4" stroke-linecap="round" stroke-opacity="0.85" />
+    <line x1="116" y1="100" x2="158" y2="100" stroke="#42DDF5" stroke-width="1.4" stroke-linecap="round" stroke-opacity="0.85" />
+    <line x1="100" y1="42" x2="100" y2="84" stroke="#42DDF5" stroke-width="1.4" stroke-linecap="round" stroke-opacity="0.85" />
+    <line x1="100" y1="116" x2="100" y2="158" stroke="#42DDF5" stroke-width="1.4" stroke-linecap="round" stroke-opacity="0.85" />
+
+    <!-- Center Reticle Ring -->
+    <circle cx="100" cy="100" r="14" fill="none" stroke="#42DDF5" stroke-width="1.8" />
+
+    <!-- Descent Trajectory Vector -->
+    <path d="M 44 56 Q 72 40, 92 68 T 100 100"
+          fill="none" stroke="url(#l-traj-grad)" stroke-width="3" stroke-linecap="round" />
+
+    <!-- Target Star Beacon (Peaks of Eternal Light) -->
+    <circle cx="100" cy="100" r="32" fill="url(#l-beacon-glow)" />
+    <g filter="url(#l-star-glow)">
+      <path d="M 100 86 L 103.8 96.2 L 114 100 L 103.8 103.8 L 100 114 L 96.2 103.8 L 86 100 L 96.2 96.2 Z"
+            fill="url(#l-amber-grad)" />
+      <circle cx="100" cy="100" r="2.6" fill="#FFFFFF" />
+    </g>
+  </g>
+
+  <!-- ==================== BRANDING & TYPOGRAPHY ==================== -->
+  <!-- Top Pedigree Line -->
+  <g transform="translate(108, 25)">
+    <circle cx="4" cy="-3.5" r="2.5" fill="#42DDF5" />
+    <text x="14" y="0"
+          font-family="'JetBrains Mono', 'SF Mono', monospace"
+          font-size="9"
+          font-weight="600"
+          letter-spacing="0.22em"
+          fill="#78AEFF">NASA SPACE APPS 2026 &#183; SELENE LABS</text>
+
+    <!-- Geodetic Reference Pill -->
+    <rect x="330" y="-9" width="105" height="14" rx="7" fill="rgba(66, 221, 245, 0.08)" stroke="rgba(66, 221, 245, 0.3)" stroke-width="0.8" />
+    <text x="382" y="1.5"
+          font-family="'JetBrains Mono', 'SF Mono', monospace"
+          font-size="7.5"
+          font-weight="700"
+          letter-spacing="0.1em"
+          fill="#42DDF5"
+          text-anchor="middle">IAU MOON_ME</text>
+  </g>
+
+  <!-- Primary Wordmark: LUNAOPS -->
+  <g transform="translate(108, 62)">
+    <text font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif"
+          font-size="36"
+          line-height="1">
+      <!-- LUNA -->
+      <tspan fill="#FFFFFF" font-weight="300" letter-spacing="0.18em">LUNA</tspan>
+      <!-- OPS -->
+      <tspan dx="4" fill="#42DDF5" font-weight="900" letter-spacing="0.12em" filter="url(#l-glow)">OPS</tspan>
+    </text>
+
+    <!-- Mission Sub-Tag -->
+    <text x="260" y="-3"
+          font-family="'JetBrains Mono', 'SF Mono', monospace"
+          font-size="8.5"
+          font-weight="600"
+          letter-spacing="0.14em"
+          fill="#38BDF8"
+          opacity="0.85">v2.4 &#183; SOUTH POLE</text>
+  </g>
+
+  <!-- Precision Accent Divider Line -->
+  <line x1="108" y1="72" x2="560" y2="72" stroke="url(#l-divider-grad)" stroke-width="1.4" />
+
+  <!-- The Clear Website Motto: Explore the lunar frontier · Plan with precision -->
+  <g transform="translate(108, 88)">
+    <text font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif"
+          font-size="10"
+          letter-spacing="0.16em">
+      <tspan fill="#94A3B8" font-weight="500">EXPLORE THE LUNAR FRONTIER</tspan>
+      <tspan fill="#38BDF8" font-weight="700"> &#183; </tspan>
+      <tspan fill="#42DDF5" font-weight="800">PLAN WITH PRECISION</tspan>
+    </text>
+  </g>
+</svg>'''
+
+ET.fromstring(logo_svg)
+print("lunaops-logo.svg XML is valid!")
+
+with open('public/lunaops-logo.svg', 'w', encoding='utf-8') as f:
+    f.write(logo_svg)
+with open('dist/lunaops-logo.svg', 'w', encoding='utf-8') as f:
+    f.write(logo_svg)
+print("Successfully validated and wrote public/lunaops-logo.svg and dist/lunaops-logo.svg")
