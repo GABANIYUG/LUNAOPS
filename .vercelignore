@@ -1,12 +1,10 @@
-# Development, tests, and scratch files
-scratch/
-scripts/
-docs/
-backend/tests/
-backend/.pytest_cache/
-*.png
-*.jpg
-*.txt
-*.md
+# Backend is deployed on Render
+backend/
+
+# Raw NASA GeoTIFF source data (not needed by frontend build)
 Resources/
 
+# Development and helper scripts
+scripts/
+scratch/
+docs/
