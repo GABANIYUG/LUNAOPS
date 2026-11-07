@@ -6,7 +6,7 @@
  * calculations; no values are fabricated by this client.
  */
 
-export const SPICE_API_BASE = 'http://127.0.0.1:8000';
+export const SPICE_API_BASE = import.meta.env.VITE_API_BASE ?? (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
 
 // ---------------------------------------------------------------------------
 // Type definitions matching backend response schemas
