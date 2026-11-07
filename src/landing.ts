@@ -405,19 +405,21 @@ const MoonMaterial = new THREE.ShaderMaterial({
     uniform vec3 sunDir; uniform float opacity; uniform float earthshine;
     varying vec3 vNormal; varying vec3 vWorldPos; varying vec2 vUv; varying vec3 vViewVector;
 
-    vec3 perturbNormal(vec3 N, vec3 V, vec2 uv) {
-      vec3 dPdx = dFdx(vWorldPos); vec3 dPdy = dFdy(vWorldPos);
-      vec2 dUdx = dFdx(uv);         vec2 dUdy = dFdy(uv);
-      vec3 T = normalize(dPdx * dUdy.y - dPdy * dUdx.y);
-      vec3 B = normalize(dPdy * dUdx.x - dPdx * dUdx.x);
-      vec3 nm = texture2D(normalTexture, uv).rgb * 2.0 - 1.0;
-      return normalize(mat3(T, B, N) * nm);
-    }
     void main() {
-      vec3 N_geom = normalize(vNormal);
+      vec3 N = normalize(vNormal);
       vec3 V = normalize(vViewVector);
       vec3 L = normalize(sunDir);
-      vec3 N = perturbNormal(N_geom, V, vUv);
+
+      // Stable tangent perturbation from normal texture without broken derivatives
+      vec4 nSample = texture2D(normalTexture, vUv);
+      if (nSample.b > 0.35) {
+        vec3 nm = nSample.rgb * 2.0 - 1.0;
+        vec3 up = abs(N.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(0.0, 0.0, 1.0);
+        vec3 T = normalize(cross(up, N));
+        vec3 B = cross(N, T);
+        N = normalize(N + (T * nm.x + B * nm.y) * 0.30);
+      }
+
       vec3 albedo = texture2D(colorTexture, vUv).rgb;
       float NdotL = dot(N, L);
       float direct = max(NdotL, 0.0);
