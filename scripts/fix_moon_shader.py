@@ -76,3 +76,4 @@ else:
 with open('src/landing.ts', 'w', encoding='utf-8') as f:
     f.write(text)
 print("Updated src/landing.ts!")
+
