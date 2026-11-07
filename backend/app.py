@@ -98,21 +98,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS: allow only the Vite dev server (localhost and 127.0.0.1, port 5173)
-# and the Vite preview server (port 4173).  Adjust for production deployment.
+# CORS: allow Vite dev/preview servers and production frontends (e.g. Vercel)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-        "http://localhost:4173",
-        "http://127.0.0.1:4173",
-    ],
+    allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type", "Accept"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 
