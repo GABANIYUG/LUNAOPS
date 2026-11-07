@@ -29,9 +29,15 @@ import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+try:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    HAS_MATPLOTLIB = True
+except ImportError:
+    matplotlib = None
+    plt = None
+    HAS_MATPLOTLIB = False
 import numpy as np
 
 from reportlab.lib.pagesizes import letter
@@ -180,7 +186,7 @@ def get_kernel_hashes() -> dict[str, str]:
 
 def render_timeline_chart_png(samples: list[dict[str, Any]]) -> bytes:
     """Generate a clean dark-mode elevation and clearance time-series chart."""
-    if not samples:
+    if not HAS_MATPLOTLIB or not samples or plt is None:
         return b""
 
     hours = []
@@ -241,7 +247,7 @@ def render_timeline_chart_png(samples: list[dict[str, Any]]) -> bytes:
 
 def render_comparison_chart_png(scenarios: list[dict[str, Any]]) -> bytes:
     """Generate a side-by-side grouped bar chart comparing key mission metrics."""
-    if not scenarios:
+    if not HAS_MATPLOTLIB or not scenarios or plt is None:
         return b""
 
     names = [s.get("scenario_name", s.get("scenario_id", "Scenario"))[:18] for s in scenarios]

@@ -1,0 +1,11 @@
+# Development, tests, and scratch files
+scratch/
+scripts/
+docs/
+backend/tests/
+backend/.pytest_cache/
+*.png
+*.jpg
+*.txt
+*.md
+Resources/
